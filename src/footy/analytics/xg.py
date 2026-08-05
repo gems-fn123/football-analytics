@@ -32,11 +32,13 @@ def shot_features(shots: pd.DataFrame) -> pd.DataFrame:
         dx**2 + dy**2 - half**2,
     )
     angle = np.where(angle < 0, angle + np.pi, angle)
-    return pd.DataFrame({
-        "distance_m": dist,
-        "angle_rad": angle,
-        "inverse_distance": 1 / dist.clip(lower=1.0),
-    })
+    return pd.DataFrame(
+        {
+            "distance_m": dist,
+            "angle_rad": angle,
+            "inverse_distance": 1 / dist.clip(lower=1.0),
+        }
+    )
 
 
 def fit_base(shots: pd.DataFrame, target: str = "is_goal"):

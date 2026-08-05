@@ -1,0 +1,17 @@
+# Stock broadcast clip: open play, red vs blue kits, green goalkeeper.
+match_id: clip1
+date: 2026-08-05
+competition: Stock footage
+venue: Unknown
+
+camera: configs/camera/broadcast.yaml
+
+home:
+  name: Red
+  kit_colour: "#C62828"
+away:
+  name: Blue
+  kit_colour: "#1E64C8"
+  gk_kit_colour: "#3FA34D"
+
+referee_colour: "#D9CE4C"

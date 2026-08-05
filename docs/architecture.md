@@ -24,6 +24,12 @@ This means stages can be:
 - reordered, as long as declared inputs still exist in `ctx`
 - swapped for a different backend by pointing the config at another yaml
 
+Skipping has structure. `detect` feeds everything, and `track` feeds everything
+after it - disabling either fails fast with a message naming the missing stage.
+The enrichment stages (`team`, `identity`) and `calibrate`, `ball`, `events` are
+individually skippable: downstream stages fill the columns a skipped enricher
+would have added with nulls, which is exactly what "that stage did not run" means.
+
 ## Data flow
 
 ```

@@ -11,7 +11,7 @@ import pandas as pd
 DETECTIONS = {
     "frame": "int64",
     "det_id": "int64",
-    "cls": "string",       # player | goalkeeper | referee | ball
+    "cls": "string",  # player | goalkeeper | referee | ball
     "conf": "float32",
     "x1": "float32",
     "y1": "float32",
@@ -25,13 +25,27 @@ TRACKS_M = {
     "frame": "int64",
     "t_s": "float32",
     "track_id": "int64",
-    "team": "string",      # home | away | referee | ball
-    "shirt": "Int16",      # nullable, OCR is unreliable
-    "player": "string",    # resolved from the squad list, nullable
+    "team": "string",  # home | away | referee | ball, nullable when unresolved
+    "shirt": "Int16",  # nullable, OCR is unreliable
+    "player": "string",  # resolved from the squad list, nullable
     "x_m": "float32",
     "y_m": "float32",
     "speed_ms": "float32",
     "conf": "float32",
+}
+
+# Ball trajectory. Kept separate from tracks_m because the ball needs its own
+# gating and interpolation, and because homography maps the ground plane: an
+# airborne ball projects to the wrong spot, so metre columns are approximate.
+BALL = {
+    "frame": "int64",
+    "t_s": "float32",
+    "x_px": "float32",
+    "y_px": "float32",
+    "x_m": "float32",  # NaN when uncalibrated
+    "y_m": "float32",
+    "conf": "float32",  # NaN on interpolated rows
+    "interpolated": "bool",
 }
 
 # socceraction SPADL-compatible subset

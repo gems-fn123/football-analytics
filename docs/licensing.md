@@ -4,9 +4,12 @@ See `NOTICE.md` for the full matrix. The short version:
 
 - Own code: MIT.
 - Default detector backend: Apache-2.0. Safe.
-- Ultralytics YOLO is AGPL-3.0. Opt-in only, via `configs/detector/yolo.yaml`.
-  If you serve this over a network with YOLO enabled, AGPL source-disclosure applies
-  to your whole service unless you hold a commercial licence.
+- Ultralytics YOLO is AGPL-3.0. `src/footy/` refuses to import it by design
+  (`stages/detect.py` raises on the `ultralytics_yolo` backend); using it means
+  writing a subprocess wrapper under `scripts/`. `configs/detector/yolo.yaml` is
+  kept as the reference config for such a wrapper. If you serve this over a network
+  with YOLO enabled, AGPL source-disclosure applies to your whole service unless
+  you hold a commercial licence.
 - GPL repos (sn-gamestate, PnLCalib) are invoked as subprocesses only.
 - Datasets carry their own terms and often require attribution. StatsBomb open data
   requires the line "Data provided by StatsBomb" wherever it is used.

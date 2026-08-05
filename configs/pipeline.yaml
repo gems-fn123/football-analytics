@@ -1,7 +1,10 @@
 # Top-level run-time config. Nothing here reads a provider API.
 match_id: example_match
 camera: configs/camera/fixed_wide.yaml
-detector: configs/detector/rfdetr.yaml
+# rtdetr_coco needs no local weights and no API key, so the quick start in README.md
+# works on a fresh clone. Swap to configs/detector/rfdetr.yaml once you have a football
+# fine-tune: it distinguishes goalkeeper and referee, which a COCO model cannot.
+detector: configs/detector/rtdetr_coco.yaml
 tracker: configs/tracker/bytetrack.yaml
 pitch: configs/pitch/standard_105x68.yaml
 
@@ -19,6 +22,18 @@ stages:
   ball: true
   calibrate: true
   events: false            # false = hand-tag instead, see docs/runbook.md
+
+team:
+  method: kit_colour       # Lab-chroma torso matching; no model, no GPU
+  sample_stride: 5         # sample every Nth frame for colour crops
+  min_crops: 3             # tracks with fewer usable crops stay unassigned
+  max_ref_dist: 40.0       # Lab ab units to the nearest config kit colour; null beyond
+  outlier_dist: 25.0       # clustering fallback only (no kit colours in match config)
+
+ball:
+  max_speed_ms: 45.0       # hardest recorded shots sit around 50 m/s
+  max_gap_frames: 12       # interpolate gaps up to ~0.5 s at 25 fps, null beyond
+  reacquire_s: 1.0         # after this long unseen, accept the next candidate as-is
 
 runtime:
   device: cuda

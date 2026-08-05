@@ -24,7 +24,12 @@ def build_parser() -> argparse.ArgumentParser:
     inspect.add_argument("--video", required=True)
 
     calib = sub.add_parser("calibrate", help="solve a static homography for a fixed camera")
-    calib.add_argument("--video", required=True)
+    calib.add_argument(
+        "--points",
+        required=True,
+        help="JSON with image_points and pitch_points; collect them interactively "
+        "with scripts/calibrate_fixed_camera.py",
+    )
     calib.add_argument("--out", default="configs/camera/fixed_wide_points.json")
 
     xg = sub.add_parser("fit-xg", help="recalibrate the xG model on local shots")
@@ -40,8 +45,10 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "inspect":
         meta = probe(args.video)
-        print(f"{meta.path.name}: {meta.width}x{meta.height} @ {meta.fps:.2f} fps, "
-              f"{meta.n_frames} frames, {meta.duration_s:.1f} s")
+        print(
+            f"{meta.path.name}: {meta.width}x{meta.height} @ {meta.fps:.2f} fps, "
+            f"{meta.n_frames} frames, {meta.duration_s:.1f} s"
+        )
         return 0
 
     if args.command == "run":
@@ -55,8 +62,20 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.command == "calibrate":
-        log.error("not implemented, see scripts/calibrate_fixed_camera.py")
-        return 1
+        import json
+        from pathlib import Path
+
+        from footy.stages.calibrate import solve_homography
+
+        blob = json.loads(Path(args.points).read_text())
+        H, err = solve_homography(blob["image_points"], blob["pitch_points"])
+        blob["solved_homography"] = H.tolist()
+        blob["max_reprojection_error_m"] = err
+        Path(args.out).write_text(json.dumps(blob, indent=2))
+        log.info("wrote %s  max reprojection error %.2f m", args.out, err)
+        if err > 2.0:
+            log.warning("reprojection error above 2 m; re-pick the landmarks")
+        return 0
 
     if args.command == "fit-xg":
         from footy.analytics.xg import fit_local

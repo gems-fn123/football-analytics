@@ -30,9 +30,13 @@ footy run --video data/raw/match.mp4 --config configs/pipeline.yaml --match conf
 Outputs land in `data/processed/<match_id>/`:
 
 ```
-tracks.parquet      frame, track_id, team, shirt, x_m, y_m
-events.parquet      SPADL-compatible action table
-report.html         plots and summary
+tracks.parquet      tracks_m contract: frame, t_s, track_id, team, shirt, player,
+                    x_m, y_m, speed_ms, conf. Metres are NaN when uncalibrated.
+tracks_px.parquet   pixel-space tracks with boxes; always written, and the ground
+                    truth for debugging
+ball.parquet        gated, interpolated ball trajectory
+events.parquet      SPADL-compatible action table (when stages.events is on)
+report.html         summary tables with an honesty caveat
 ```
 
 ## Pipeline stages

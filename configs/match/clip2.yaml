@@ -1,0 +1,17 @@
+# Stock broadcast clip: attack toward the right goal, red vs cyan, green goalkeeper.
+match_id: clip2
+date: 2026-08-05
+competition: Stock footage
+venue: Unknown
+
+camera: configs/camera/broadcast.yaml
+
+home:
+  name: Red
+  kit_colour: "#C62F3C"
+  gk_kit_colour: "#3FA34D"
+away:
+  name: Cyan
+  kit_colour: "#3FB6E6"
+
+referee_colour: "#303030"

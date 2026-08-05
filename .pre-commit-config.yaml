@@ -9,7 +9,9 @@ repos:
         args: ["--maxkb=2000"]
       - id: check-merge-conflict
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.4.4
+    # Keep close to the ruff that CI installs (>=0.4 unpinned resolves to 0.16.x);
+    # a stale pin here makes the hook and CI disagree about formatting.
+    rev: v0.16.1
     hooks:
       - id: ruff
         args: [--fix]

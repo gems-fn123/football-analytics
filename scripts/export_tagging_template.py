@@ -19,8 +19,18 @@ from pathlib import Path
 import pandas as pd
 
 TEMPLATE_COLUMNS = [
-    "period", "clock_mmss", "team", "shirt", "type_name",
-    "start_x", "start_y", "end_x", "end_y", "result_name", "bodypart_name", "note",
+    "period",
+    "clock_mmss",
+    "team",
+    "shirt",
+    "type_name",
+    "start_x",
+    "start_y",
+    "end_x",
+    "end_y",
+    "result_name",
+    "bodypart_name",
+    "note",
 ]
 
 EXAMPLE_ROWS = [

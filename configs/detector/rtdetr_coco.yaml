@@ -1,0 +1,18 @@
+name: rtdetr_coco
+licence: Apache-2.0        # model and weights are both Apache-2.0
+model_id: PekingU/rtdetr_r18vd
+weights: null              # pulled from the HuggingFace hub, no API key needed
+
+# Zero-setup default. A COCO-pretrained detector knows "person" and "sports ball",
+# not football roles, so it cannot tell a goalkeeper or a referee from a player.
+# Those are resolved downstream by stages.team from kit colour, which is where that
+# decision belongs anyway. Swap to configs/detector/rfdetr.yaml once you have a
+# football-specific fine-tune and you get the four roles directly from the detector.
+class_map:
+  person: player
+  sports ball: ball
+
+conf_threshold: 0.35
+iou_threshold: 0.50
+imgsz: 640                 # RT-DETR is trained at 640; forcing 1280 costs time and
+                           # gains little. For the ball, tiled inference beats upscaling.

@@ -34,3 +34,6 @@ models/weights/*
 outputs/
 runs/
 wandb/
+.coverage
+coverage.xml
+htmlcov/

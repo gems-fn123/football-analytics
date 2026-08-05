@@ -26,11 +26,19 @@ class Config:
     @classmethod
     def load(cls, pipeline_path: str | Path, match_path: str | Path | None = None) -> Config:
         raw = load_yaml(pipeline_path)
+        match = load_yaml(match_path) if match_path else {}
+        # A YAML section left empty ("io:" with no children) loads as None, and every
+        # consumer expects a dict. Normalise once here rather than `or {}` everywhere.
+        raw = {k: ({} if v is None else v) for k, v in raw.items()}
+        match = {k: ({} if v is None else v) for k, v in match.items()}
+        # The camera (and in principle any nested profile) belongs to the venue and
+        # recording, so the per-match file may override the pipeline default:
+        #   camera: configs/camera/broadcast.yaml
         for key in NESTED_KEYS:
-            value = raw.get(key)
+            override = match.get(key)
+            value = override if isinstance(override, str) else raw.get(key)
             if isinstance(value, str):
                 raw[key] = load_yaml(value)
-        match = load_yaml(match_path) if match_path else {}
         return cls(raw=raw, match=match)
 
     def __getitem__(self, key: str) -> Any:

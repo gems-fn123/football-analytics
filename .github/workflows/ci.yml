@@ -18,9 +18,14 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: pip
       - name: Install
+        # CPU torch wheels first: the default PyPI linux wheels bundle CUDA and are
+        # ~2 GB heavier than CI needs. Then the full dev set - the test suite
+        # exercises the tracker (supervision), team clustering (sklearn), and xG
+        # (sklearn), so .[dev] alone is not enough to run it.
         run: |
           python -m pip install -U pip
-          pip install -e .[dev]
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install -r requirements/dev.txt
       - name: Lint
         run: ruff check src tests
       - name: Test

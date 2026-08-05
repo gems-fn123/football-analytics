@@ -23,9 +23,7 @@ def shot_map(shots: pd.DataFrame, xg_col: str = "xg", ax=None):
     pitch = Pitch(pitch_type="custom", pitch_length=105, pitch_width=68, half=True)
     if ax is None:
         _, ax = pitch.draw(figsize=(9, 6))
-    pitch.scatter(
-        shots["start_x"], shots["start_y"], s=shots[xg_col] * 900 + 30, ax=ax, alpha=0.75
-    )
+    pitch.scatter(shots["start_x"], shots["start_y"], s=shots[xg_col] * 900 + 30, ax=ax, alpha=0.75)
     return ax
 
 

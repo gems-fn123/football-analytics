@@ -7,13 +7,16 @@ name = "football-analytics"
 version = "0.1.0"
 description = "Match video to tracking, events, and analytics using open-source tools"
 readme = "README.md"
-requires-python = ">=3.10"
+# <3.13 because the numpy<2.0 floor (see dependencies) ships no cp313 wheels.
+requires-python = ">=3.10,<3.13"
 license = { file = "LICENSE" }
 authors = [{ name = "Fataa Naufal" }]
 keywords = ["football", "soccer", "computer-vision", "tracking", "analytics"]
 
 dependencies = [
-  "numpy>=1.26",
+  # <2.0 is forced by socceraction in the analytics extra. Lifting the cap also drags
+  # numba back to a Python<3.10 release, which breaks the cv extra. See docs/licensing.md.
+  "numpy>=1.26,<2.0",
   "pandas>=2.1",
   "pyarrow>=15.0",
   "opencv-python-headless>=4.9",
@@ -26,7 +29,10 @@ dependencies = [
 cv = [
   "torch>=2.2",
   "torchvision>=0.17",
-  "supervision>=0.20",
+  # <0.31 because sv.ByteTrack is removed there. The suggested replacement,
+  # ByteTrackTracker from `trackers`, requires numpy>=2.0.2 and so cannot coexist with
+  # socceraction (numpy<2.0). Revisit when trackers relaxes that bound.
+  "supervision>=0.20,<0.31",
   "transformers>=4.40",
   "scikit-learn>=1.4",
   "umap-learn>=0.5",
@@ -35,7 +41,8 @@ analytics = [
   "kloppy>=3.15",
   "socceraction>=1.5",
   "mplsoccer>=1.4",
-  "floodlight>=0.4",
+  # floodlight is unsatisfiable alongside socceraction: <0.5 needs pandas<2.0, >=0.5
+  # needs numpy>=2.1. Nothing imports it yet. Re-add only if socceraction is dropped.
   "scikit-learn>=1.4",
   "xgboost>=2.0",
 ]

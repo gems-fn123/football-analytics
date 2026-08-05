@@ -1,0 +1,22 @@
+# Stock broadcast clip: kickoff, blue vs white kits, yellow referee.
+match_id: clip0
+date: 2026-08-05
+competition: Stock footage
+venue: Unknown
+
+# Moving broadcast camera; overrides the pipeline default (fixed_wide). Metres stay
+# null until a per-frame calibration backend exists - pixel tracks are still valid.
+camera: configs/camera/broadcast.yaml
+
+home:
+  name: Blue
+  kit_colour: "#2A55C4"
+away:
+  name: White
+  kit_colour: "#E6E6E6"
+  gk_kit_colour: "#3FA34D"
+
+referee_colour: "#D9CE4C"
+
+# No squad lists: nobody knows these players' names, so identity stays null,
+# which is exactly what the pipeline is designed to tolerate.

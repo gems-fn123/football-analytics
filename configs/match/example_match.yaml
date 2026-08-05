@@ -1,5 +1,9 @@
 # The one file a human types per match. This is the amber box in the schema.
 match_id: example_match
+
+# Optional: the camera belongs to the venue, so this file may override the pipeline
+# default profile, e.g.
+#   camera: configs/camera/broadcast.yaml
 date: 2026-08-01
 competition: Local league
 venue: Example Stadium
@@ -21,5 +25,8 @@ away:
   squad:
     1: { name: Opponent One, position: GK }
     9: { name: Opponent Nine, position: ST }
+
+# Optional: helps the team stage label the referee instead of leaving them null.
+referee_colour: "#FFEB3B"
 
 # Optional. Leave blank and the pipeline outputs "team A #7" instead of names.

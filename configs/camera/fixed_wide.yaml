@@ -1,0 +1,10 @@
+profile: fixed_wide
+description: Single panoramic tactical camera, static mount
+homography:
+  mode: static             # solve once, reuse for the whole match
+  refresh_every_n_frames: null
+  manual_points: configs/camera/fixed_wide_points.json
+expectations:
+  players_visible: 22
+  shot_boundary_detection: false
+  replay_filtering: false

@@ -1,0 +1,13 @@
+length_m: 105.0
+width_m: 68.0
+origin: bottom_left
+units: metres
+# Measure your actual pitch if it is non-standard. Wrong dimensions bias every
+# distance, speed, and xG value downstream.
+landmarks:
+  centre_circle_radius_m: 9.15
+  penalty_area_length_m: 16.5
+  penalty_area_width_m: 40.32
+  goal_area_length_m: 5.5
+  goal_width_m: 7.32
+  penalty_spot_m: 11.0

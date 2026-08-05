@@ -1,0 +1,33 @@
+# Top-level run-time config. Nothing here reads a provider API.
+match_id: example_match
+camera: configs/camera/fixed_wide.yaml
+detector: configs/detector/rfdetr.yaml
+tracker: configs/tracker/bytetrack.yaml
+pitch: configs/pitch/standard_105x68.yaml
+
+io:
+  data_root: data
+  output_dir: data/processed
+  frame_stride: 1          # 2 halves compute, halves effective sample rate
+  max_frames: null         # null = whole video, set an int for smoke tests
+
+stages:
+  detect: true
+  track: true
+  team: true
+  identity: true
+  ball: true
+  calibrate: true
+  events: false            # false = hand-tag instead, see docs/runbook.md
+
+runtime:
+  device: cuda
+  batch_size: 8
+  half_precision: true
+  num_workers: 4
+
+outputs:
+  tracks: true
+  events: true
+  radar_video: false       # expensive, enable for a highlight clip only
+  report: true

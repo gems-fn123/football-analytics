@@ -1,0 +1,13 @@
+profile: phone
+description: Handheld, ball-following, shaky
+homography:
+  mode: per_frame
+  refresh_every_n_frames: 5
+  keypoint_model: models/weights/pitch_keypoints.pt
+stabilisation:
+  enabled: true
+expectations:
+  players_visible: 8
+  shot_boundary_detection: false
+  replay_filtering: false
+  warning: Short sequences only. Full-match tracking is not reliable.

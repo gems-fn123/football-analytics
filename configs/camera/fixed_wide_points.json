@@ -1,0 +1,6 @@
+{
+  "_comment": "Image pixel coords for known pitch landmarks. Run scripts/calibrate_fixed_camera.py to fill this in once.",
+  "image_points": [],
+  "pitch_points": [],
+  "solved_homography": null
+}

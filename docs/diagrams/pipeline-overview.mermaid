@@ -1,0 +1,263 @@
+flowchart TB
+
+%% =========================================================
+%% 0 · INPUT
+%% =========================================================
+subgraph IN["0 · INPUT — video source (determines the ceiling)"]
+  V1["Broadcast TV<br/>moving cam, cuts, replays<br/>~14-16 of 22 players in frame"]
+  V2["Fixed wide / tactical cam<br/>all 22 in frame, static homography<br/>BEST free-tier scenario"]
+  V3["Phone / handheld<br/>ball-following, shaky<br/>short sequences only"]
+end
+
+%% =========================================================
+%% 1 · DETECTION
+%% =========================================================
+subgraph ST1["1 · DETECTION — box players, refs, GK, ball per frame"]
+  A1["roboflow/sports<br/>MIT"]
+  A1d["deps: supervision · torch · opencv-python · numpy<br/>backbone: ultralytics YOLOv8/11 AGPL-3.0<br/>OR RF-DETR Apache-2.0<br/>weights: football-players-detection-3zvbc"]
+  A2["Ultralytics YOLO11<br/>AGPL-3.0 ⚠ commercial licence needed"]
+  A2d["deps: torch · torchvision · opencv · PyYAML<br/>data: Roboflow Universe football datasets"]
+  A3["RT-DETR / RF-DETR<br/>Apache-2.0"]
+  A3d["deps: torch · transformers · timm"]
+  A1 -.-> A1d
+  A2 -.-> A2d
+  A3 -.-> A3d
+end
+
+%% =========================================================
+%% 2 · TRACKING + RE-ID
+%% =========================================================
+subgraph ST2["2 · TRACKING &amp; RE-ID — keep one ID per player through occlusion"]
+  B1["ByteTrack<br/>via supervision · MIT"]
+  B1d["deps: numpy · scipy · lap/lapx<br/>no neural net → fastest"]
+  B2["BoT-SORT / OC-SORT / DeepSORT"]
+  B2d["deps: torchreid or OSNet re-ID weights<br/>filterpy · scipy · Kalman filter"]
+  B3["SAM 2<br/>Apache-2.0"]
+  B3d["deps: torch ≥2.3 · sam2 checkpoints<br/>⚠ ~1-2 FPS on Colab T4 with many objects"]
+  B1 -.-> B1d
+  B2 -.-> B2d
+  B3 -.-> B3d
+end
+
+%% =========================================================
+%% 3 · TEAM ASSIGNMENT
+%% =========================================================
+subgraph ST3["3 · TEAM ASSIGNMENT — split crops into 2 kits"]
+  C1["SigLIP → UMAP → KMeans<br/>in roboflow/sports"]
+  C1d["deps: transformers · umap-learn · scikit-learn<br/>Pillow · torch<br/>fails on similar kits / GK colours"]
+  C2["K-means on jersey pixels<br/>naive baseline"]
+  C2d["deps: scikit-learn · opencv only<br/>cheap, brittle under floodlights"]
+  C1 -.-> C1d
+  C2 -.-> C2d
+end
+
+%% =========================================================
+%% 4 · JERSEY NUMBER / IDENTITY
+%% =========================================================
+subgraph ST4["4 · IDENTITY — read shirt numbers (hard: ~0.78 tracklet acc)"]
+  E1["Two-stage: detect text → OCR"]
+  E1d["deps: PaddleOCR / PP-OCRv4 · DBNet or YOLO text detector<br/>majority-vote aggregation per tracklet"]
+  E2["VLM route: SmolVLM2 / CLIP"]
+  E2d["deps: transformers · accelerate · torch<br/>needs GPU VRAM"]
+  E3["Manual identity assignment<br/>fallback"]
+  E3d["deps: human + spreadsheet<br/>most reliable for &lt;90 min of footage"]
+  E1 -.-> E1d
+  E2 -.-> E2d
+  E3 -.-> E3d
+end
+
+%% =========================================================
+%% 5 · PITCH CALIBRATION / HOMOGRAPHY
+%% =========================================================
+subgraph ST5["5 · CALIBRATION — pixels → pitch metres (105x68)"]
+  F1["PnLCalib<br/>GPL-2.0"]
+  F1d["deps: torch · kornia · opencv · numpy<br/>points + lines optimisation + refinement"]
+  F2["No Bells Just Whistles<br/>check LICENSE file"]
+  F2d["deps: torch · HRNet backbone · DLT solver<br/>train data: SoccerNet-calibration"]
+  F3["TVCalib / sn-calibration"]
+  F3d["deps: torch · pytorch-lightning · SoccerNet pip pkg"]
+  F4["Manual 4-point homography<br/>fixed camera only"]
+  F4d["deps: opencv cv2.findHomography<br/>calibrate ONCE → free for whole match"]
+  F1 -.-> F1d
+  F2 -.-> F2d
+  F3 -.-> F3d
+  F4 -.-> F4d
+end
+
+%% =========================================================
+%% 6 · BALL TRACKING
+%% =========================================================
+subgraph ST6["6 · BALL TRACKING — weakest link, small fast object"]
+  G1["TrackNetV2 / V3<br/>heatmap approach"]
+  G1d["deps: torch · opencv · numpy<br/>needs soccer fine-tuning, many false positives"]
+  G2["Tiled inference<br/>supervision InferenceSlicer / SAHI"]
+  G2d["deps: supervision · detector from stage 1"]
+  G3["Trajectory smoothing / interpolation"]
+  G3d["deps: pandas · scipy · Kalman/spline fill of gaps"]
+  G1 -.-> G1d
+  G2 -.-> G2d
+  G3 -.-> G3d
+end
+
+%% =========================================================
+%% 7 · EVENT / ACTION SPOTTING
+%% =========================================================
+subgraph ST7["7 · EVENT SPOTTING — when + what happened"]
+  H1["T-DEED<br/>2024 ball-action winner"]
+  H1d["deps: torch · timm · SoccerNet pip pkg<br/>12 ball-action classes"]
+  H2["SoccerNet/sn-spotting · sn-teamspotting"]
+  H2d["deps: torch · SoccerNet dev-kit · numpy"]
+  H3["Derive events FROM tracking<br/>rule-based"]
+  H3d["deps: pandas · numpy<br/>possession change → pass; velocity spike → shot"]
+  H4["MANUAL TAGGING<br/>LongoMatch GPLv2 · Kinovea (Win only)"]
+  H4d["deps: none (GUI)<br/>export XML/CSV → map to SPADL<br/>⚠ LongoMatch free tier caps 50 actions"]
+  H1 -.-> H1d
+  H2 -.-> H2d
+  H3 -.-> H3d
+  H4 -.-> H4d
+end
+
+%% =========================================================
+%% ORCHESTRATION
+%% =========================================================
+subgraph ORCH["ORCHESTRATOR — glues stages 1-5 into one run"]
+  O1["SoccerNet/sn-gamestate<br/>GPL-3.0 · GS-HOTA ~64 ceiling"]
+  O1d["deps: tracklab · hydra-core · omegaconf<br/>+ every module in stages 1-5"]
+  O2["tracklab<br/>modular MOT framework"]
+  O2d["deps: torch · hydra · pandas · rich"]
+  O3["roboflow/sports examples<br/>RADAR mode"]
+  O3d["deps: stages 1+2+3+5 only<br/>fastest weekend PoC"]
+  O1 -.-> O1d
+  O2 -.-> O2d
+  O3 -.-> O3d
+  O1 --> O2
+end
+
+%% =========================================================
+%% DATA LAYER
+%% =========================================================
+subgraph DL["8 · DATA STANDARDISATION"]
+  K1["kloppy<br/>BSD-3"]
+  K1d["deps: pandas · polars(opt) · lxml<br/>loads 16+ providers: StatsBomb, Wyscout,<br/>Metrica, PFF, SkillCorner, Tracab"]
+  K2["SPADL format<br/>via socceraction"]
+  K2d["deps: pandas · numpy<br/>unified action schema for valuation"]
+  K3["databallpy"]
+  K3d["deps: pandas · scipy<br/>Needleman-Wunsch event↔tracking sync"]
+  K1 -.-> K1d
+  K2 -.-> K2d
+  K3 -.-> K3d
+  K1 --> K2
+end
+
+%% =========================================================
+%% ANALYTICS LAYER
+%% =========================================================
+subgraph AL["9 · ANALYTICS &amp; VALUATION — fully open, mature"]
+  L1["socceraction<br/>MIT · ⚠ maintenance mode"]
+  L1d["deps: pandas · scikit-learn · xgboost<br/>models: xT, VAEP, atomic-VAEP"]
+  L2["Custom xG model"]
+  L2d["deps: scikit-learn / xgboost / statsmodels<br/>train on StatsBomb + Wyscout open data"]
+  L3["floodlight<br/>MIT"]
+  L3d["deps: numpy · scipy · matplotlib<br/>metabolic power, stretch index, kinematics"]
+  L4["unravelsports"]
+  L4d["deps: torch/spektral · polars<br/>graph-NN on tracking data"]
+  L1 -.-> L1d
+  L2 -.-> L2d
+  L3 -.-> L3d
+  L4 -.-> L4d
+end
+
+%% =========================================================
+%% VIZ
+%% =========================================================
+subgraph VZ["10 · OUTPUT &amp; VISUALISATION"]
+  M1["mplsoccer<br/>MIT"]
+  M1d["deps: matplotlib · numpy · pandas<br/>pitches, shot maps, pass networks, heatmaps"]
+  M2["2D minimap / radar"]
+  M2d["deps: supervision · opencv · homography from stage 5"]
+  M3["Voronoi / pitch-control overlay"]
+  M3d["deps: scipy.spatial · matplotlib"]
+  M4["Dashboard"]
+  M4d["deps: streamlit or plotly-dash"]
+  M1 -.-> M1d
+  M2 -.-> M2d
+  M3 -.-> M3d
+  M4 -.-> M4d
+end
+
+%% =========================================================
+%% CROSS-CUTTING
+%% =========================================================
+subgraph XD["DATASETS — training + free practice"]
+  N1["StatsBomb Open Data<br/>events + 360 freeze-frames"]
+  N2["Wyscout / Pappalardo<br/>CC BY 4.0 · ~1,941 matches"]
+  N3["PFF FC 2022 WC<br/>tracking, 64 matches, free on request"]
+  N4["SkillCorner open · Metrica · Last Row"]
+  N5["SoccerNet 550+ games<br/>detection, tracking, re-ID, jersey, calib, GSR"]
+  N1d["access: statsbombpy · kloppy"]
+  N2d["access: kloppy · koenvo/wyscout repo"]
+  N3d["access: kloppy PFF loader"]
+  N4d["access: kloppy · LaurieOnTracking"]
+  N5d["access: SoccerNet pip pkg + NDA password"]
+  N1 -.-> N1d
+  N2 -.-> N2d
+  N3 -.-> N3d
+  N4 -.-> N4d
+  N5 -.-> N5d
+end
+
+subgraph XA["ANNOTATION — only if fine-tuning"]
+  P1["CVAT · Label Studio · Roboflow free tier"]
+  P1d["cost: ~2,000-3,000 hand-drawn boxes<br/>for jersey/GK class fine-tune"]
+  P1 -.-> P1d
+end
+
+subgraph XC["COMPUTE"]
+  Q1["Colab T4 free / consumer GPU ≥RTX 3060"]
+  Q1d["~1 h per 90-min match on cloud GPU<br/>CPU-only = impractical for full match"]
+  Q1 -.-> Q1d
+end
+
+%% =========================================================
+%% FLOW
+%% =========================================================
+V1 --> ST1
+V2 --> ST1
+V3 --> ST1
+
+ST1 --> ST2
+ST2 --> ST3
+ST2 --> ST4
+ST2 --> ST5
+ST1 --> ST6
+ST5 --> ST6
+ST6 --> ST7
+ST5 --> ORCH
+ST3 --> ORCH
+ST4 --> ORCH
+ORCH --> DL
+ST7 --> DL
+H4 --> DL
+DL --> AL
+AL --> VZ
+
+XD -.trains/validates.-> ST1
+XD -.trains/validates.-> ST5
+XD -.trains/validates.-> ST7
+XD -.trains.-> L2
+XA -.-> ST1
+XA -.-> ST4
+XC -.-> ORCH
+
+%% =========================================================
+%% STYLING
+%% =========================================================
+classDef permissive fill:#dff5e1,stroke:#2e7d32,color:#0b2e13;
+classDef copyleft fill:#fde8e8,stroke:#c62828,color:#3d0c0c;
+classDef weak fill:#fff4d6,stroke:#e08b00,color:#3d2a00;
+classDef data fill:#e3ecff,stroke:#2b56b8,color:#0d1c40;
+
+class A1,A3,B1,K1,K2,L1,L3,M1 permissive;
+class A2,F1,O1,H4 copyleft;
+class G1,G2,G3,E1,E2,B3 weak;
+class N1,N2,N3,N4,N5 data;

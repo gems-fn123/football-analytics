@@ -1,0 +1,7 @@
+name: botsort
+licence: MIT
+with_reid: true
+reid_weights: models/weights/osnet_x0_25.pt
+appearance_thresh: 0.25
+proximity_thresh: 0.50
+frame_rate: 25

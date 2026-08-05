@@ -1,0 +1,6 @@
+name: bytetrack
+licence: MIT
+track_activation_threshold: 0.25
+lost_track_buffer: 60
+minimum_matching_threshold: 0.85
+frame_rate: 25

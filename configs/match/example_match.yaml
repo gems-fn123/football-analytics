@@ -1,0 +1,25 @@
+# The one file a human types per match. This is the amber box in the schema.
+match_id: example_match
+date: 2026-08-01
+competition: Local league
+venue: Example Stadium
+period_length_min: 45
+
+home:
+  name: Team A
+  kit_colour: "#D32F2F"
+  gk_kit_colour: "#43A047"
+  squad:
+    1: { name: Player One, position: GK }
+    7: { name: Player Seven, position: RW }
+    10: { name: Player Ten, position: AM }
+
+away:
+  name: Team B
+  kit_colour: "#1976D2"
+  gk_kit_colour: "#FBC02D"
+  squad:
+    1: { name: Opponent One, position: GK }
+    9: { name: Opponent Nine, position: ST }
+
+# Optional. Leave blank and the pipeline outputs "team A #7" instead of names.

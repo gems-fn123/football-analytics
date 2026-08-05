@@ -1,0 +1,7 @@
+name: ultralytics_yolo
+licence: AGPL-3.0          # see NOTICE.md before commercial use
+weights: models/weights/yolo_football.pt
+classes: [player, goalkeeper, referee, ball]
+conf_threshold: 0.30
+iou_threshold: 0.50
+imgsz: 1280

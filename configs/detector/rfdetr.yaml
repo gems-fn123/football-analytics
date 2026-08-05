@@ -1,0 +1,7 @@
+name: rfdetr
+licence: Apache-2.0        # permissive, default choice
+weights: models/weights/rfdetr_football.pt
+classes: [player, goalkeeper, referee, ball]
+conf_threshold: 0.35
+iou_threshold: 0.50
+imgsz: 1280

@@ -1,0 +1,7 @@
+* text=auto eol=lf
+*.ipynb linguist-documentation
+*.parquet binary
+*.pt binary
+*.pth binary
+*.mp4 filter=lfs diff=lfs merge=lfs -text
+*.pt filter=lfs diff=lfs merge=lfs -text

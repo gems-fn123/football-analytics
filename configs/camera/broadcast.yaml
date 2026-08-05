@@ -1,0 +1,10 @@
+profile: broadcast
+description: TV feed, moving camera, cuts and replays
+homography:
+  mode: per_frame
+  refresh_every_n_frames: 1
+  keypoint_model: models/weights/pitch_keypoints.pt
+expectations:
+  players_visible: 15      # typical, not guaranteed
+  shot_boundary_detection: true
+  replay_filtering: true

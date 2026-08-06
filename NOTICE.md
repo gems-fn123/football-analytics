@@ -30,6 +30,11 @@ means giving up SPADL, xT, and VAEP.
 
 ## Weights and datasets in use
 
+| Corpus source | Licence | Obligation |
+|---|---|---|
+| Wikipedia season pages (Liga 1/Liga 2 tables and results, 2017-) | CC-BY-SA-4.0 | Attribution; every record carries source_url + retrieved_at. Facts extracted, not article text. |
+
+
 | Artefact | Licence | Obligation |
 |---|---|---|
 | NBJW calibration weights (`SV_kp`, `SV_lines`, Zenodo record 12626395) | CC-BY-4.0 | Attribution: Gutierrez-Perez & Agudo, "No Bells, Just Whistles: Sports Field Registration by Leveraging Geometric Properties", CVPRW 2024. Weights only - the reference code is GPL and is not used; our inference is clean-room (see src/footy/calib/). |

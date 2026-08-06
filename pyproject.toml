@@ -46,6 +46,13 @@ analytics = [
   "scikit-learn>=1.4",
   "xgboost>=2.0",
 ]
+corpus = [
+  # Liga 1/Liga 2 statistical corpus ingestion (src/footy/corpus/).
+  "requests>=2.31",
+  "beautifulsoup4>=4.12",
+  "html5lib>=1.1",  # tolerant parser: live Wikipedia HTML trips pandas' lxml path
+  "lxml>=5.0",
+]
 dev = [
   "pytest>=8.0",
   "pytest-cov>=5.0",

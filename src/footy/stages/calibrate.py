@@ -26,6 +26,11 @@ from footy.logging_utils import get_logger
 from footy.schemas import TRACKS_M, validate
 from footy.stages.base import Stage, StageResult, upstream_table
 
+# Projections farther than this outside the lines are geometrically meaningless:
+# crowd boxes and near-horizon points explode through a perfectly valid
+# homography. 15 m keeps keepers, throw-ins, and camera jitter.
+PLAUSIBLE_MARGIN_M = 15.0
+
 
 def solve_homography(
     image_points: list[list[float]], pitch_points: list[list[float]]
@@ -224,6 +229,26 @@ class Calibrator(Stage):
                     if mask.any():
                         pts = self.apply(inverses[nearest], ground[mask])
                         x_m[mask], y_m[mask] = pts[:, 0], pts[:, 1]
+
+        # Null geometrically meaningless projections instead of shipping them
+        # into kinematics as 800 m/s "sprints" (NaN compares False, so NaN rows
+        # are untouched).
+        wild = (
+            (x_m < -PLAUSIBLE_MARGIN_M)
+            | (x_m > 105.0 + PLAUSIBLE_MARGIN_M)
+            | (y_m < -PLAUSIBLE_MARGIN_M)
+            | (y_m > 68.0 + PLAUSIBLE_MARGIN_M)
+        )
+        if wild.any():
+            self.log.info(
+                "nulled %d/%d projections landing >%.0f m outside the pitch "
+                "(crowd boxes, near-horizon geometry)",
+                int(wild.sum()),
+                int(np.isfinite(x_m).sum()),
+                PLAUSIBLE_MARGIN_M,
+            )
+            x_m[wild] = np.nan
+            y_m[wild] = np.nan
 
         df = tracks.assign(
             t_s=tracks["frame"].to_numpy() / fps,

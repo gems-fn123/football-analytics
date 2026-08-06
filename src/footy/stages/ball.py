@@ -168,6 +168,18 @@ class BallTracker(Stage):
                 xy = Calibrator.apply(H, df[["x_px", "y_px"]].to_numpy(dtype=np.float64))
                 df["x_m"], df["y_m"] = xy[:, 0], xy[:, 1]
 
+            # Same plausibility rule as the calibrate stage: a ball "position"
+            # far off the pitch is a false candidate or horizon geometry.
+            from footy.stages.calibrate import PLAUSIBLE_MARGIN_M
+
+            wild = (
+                (df["x_m"] < -PLAUSIBLE_MARGIN_M)
+                | (df["x_m"] > 105.0 + PLAUSIBLE_MARGIN_M)
+                | (df["y_m"] < -PLAUSIBLE_MARGIN_M)
+                | (df["y_m"] > 68.0 + PLAUSIBLE_MARGIN_M)
+            )
+            df.loc[wild, ["x_m", "y_m"]] = np.nan
+
         df = validate(df[list(BALL)], BALL, self.name)
         coverage = len(df) / len(grid) if grid else 0.0
         return StageResult(

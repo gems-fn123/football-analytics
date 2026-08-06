@@ -147,6 +147,17 @@ def test_per_frame_mode_projects_with_injected_solver(tmp_path, monkeypatch):
     assert result.artifacts["homographies_px_to_m"]
 
 
+def test_implausible_projections_are_nulled(tmp_path):
+    """Crowd boxes and near-horizon points blow up through a perfectly valid
+    homography; those rows must go null rather than into kinematics as
+    hundreds-of-m/s 'sprints'."""
+    # 20x the sane scale: every FakeVideo ground point lands 300+ m down the pitch.
+    H_wild = [[105 / 640 * 20, 0.0, 0.0], [0.0, -68 / 360, 68.0], [0.0, 0.0, 1.0]]
+    result = run_calibrator(tmp_path, "static", H_wild)
+    assert result.table["x_m"].isna().all()
+    assert result.stats["calibrated"] is True  # the solve exists; the points don't
+
+
 def test_per_frame_gap_fill_scales_with_frame_stride(monkeypatch):
     """With io.frame_stride > 1 the track frames are stride raw indices apart, so
     the staleness gate must scale with the real solve cadence - not null the

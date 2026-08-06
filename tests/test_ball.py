@@ -145,7 +145,8 @@ def test_per_frame_metres_respect_the_solve_gap_cap():
     stage = BallTracker({"max_speed_ms": 45.0, "max_gap_frames": 12, "reacquire_s": 1.0})
     stage.setup()
     n_frames = 40
-    frames_xy = {0: (100.0, 200.0, 0.9), 30: (400.0, 200.0, 0.9)}
+    # y stays under the plausibility bound (identity H makes px == m here).
+    frames_xy = {0: (100.0, 60.0, 0.9), 30: (400.0, 60.0, 0.9)}
     ctx = {
         "video": FakeVideo({}, n_frames=n_frames, width=768),
         "detect": StageResult(

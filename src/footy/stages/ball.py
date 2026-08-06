@@ -145,9 +145,11 @@ class BallTracker(Stage):
         # projects long; treat these as approximate even on a calibrated camera.
         H = None
         per_frame: dict[int, np.ndarray] = {}
+        gap_cap = None
         if "calibrate" in ctx:
             H = ctx["calibrate"].artifacts.get("homography")
             per_frame = ctx["calibrate"].artifacts.get("homographies_px_to_m") or {}
+            gap_cap = ctx["calibrate"].artifacts.get("solve_gap_frames")
         df["x_m"] = np.nan
         df["y_m"] = np.nan
         if len(df) and (H is not None or per_frame):
@@ -157,6 +159,8 @@ class BallTracker(Stage):
                 solved = np.array(sorted(per_frame))
                 for i, row in enumerate(df.itertuples()):
                     nearest = int(solved[np.argmin(np.abs(solved - int(row.frame)))])
+                    if gap_cap is not None and abs(nearest - int(row.frame)) > gap_cap:
+                        continue  # same staleness rule as calibrate: null, not stale
                     xy = Calibrator.apply(per_frame[nearest], np.array([[row.x_px, row.y_px]]))
                     df.iloc[i, df.columns.get_loc("x_m")] = xy[0, 0]
                     df.iloc[i, df.columns.get_loc("y_m")] = xy[0, 1]
@@ -174,6 +178,6 @@ class BallTracker(Stage):
                 "n_candidates": len(cands),
                 "n_rejected_speed": n_rejected,
                 "n_interpolated": n_interpolated,
-                "calibrated": H is not None,
+                "calibrated": H is not None or bool(per_frame),
             },
         )

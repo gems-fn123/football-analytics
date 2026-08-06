@@ -81,7 +81,7 @@ class Calibrator(Stage):
         elif self.mode == "per_frame":
             self._kp_weights = hcfg.get("keypoint_model", "models/weights/SV_kp.pth")
             self._kp_grid_path = hcfg.get("keypoint_grid", "analysis/calib/keypoint_grid.json")
-            self._min_score = float(hcfg.get("min_score", 1.0))
+            self._min_score = float(hcfg.get("min_score", 0.0))
             self._min_points = int(hcfg.get("min_points", 5))
         self.log.info("calibration mode=%s preloaded=%s", self.mode, self.H is not None)
 
@@ -178,6 +178,7 @@ class Calibrator(Stage):
         x_m = np.full(len(tracks), np.nan)
         y_m = np.full(len(tracks), np.nan)
         homographies: dict[int, np.ndarray] = {}
+        gap_cap = self.refresh * 3
 
         # Bottom-centre of the box is the ground contact point; the homography
         # maps the ground plane, so feet are the only honest anchor.
@@ -202,15 +203,22 @@ class Calibrator(Stage):
         else:
             frames = sorted(int(f) for f in tracks["frame"].unique())
             homographies = self._solve_video(ctx, frames)
+            # Solve attempts are every refresh-th PROCESSED frame, so with
+            # io.frame_stride > 1 consecutive attempts are refresh*stride raw
+            # indices apart. The gate below compares raw indices, so derive the
+            # cadence from the frame list itself; at stride 1 it equals refresh.
+            attempts = frames[:: self.refresh]
+            if len(attempts) > 1:
+                gap_cap = int(np.median(np.diff(attempts))) * 3
             if homographies:
                 solved_frames = np.array(sorted(homographies))
                 inverses = {f: np.linalg.inv(homographies[f]) for f in solved_frames}
                 frame_col = tracks["frame"].to_numpy()
                 for f in frames:
                     # Nearest solved frame covers the refresh gaps; bounded by the
-                    # cadence, so at most refresh/2 frames of pan drift.
+                    # cadence, so at most half a cadence of pan drift.
                     nearest = int(solved_frames[np.argmin(np.abs(solved_frames - f))])
-                    if abs(nearest - f) > self.refresh * 3:
+                    if abs(nearest - f) > gap_cap:
                         continue  # long unsolved stretch: stay null, not stale
                     mask = frame_col == f
                     if mask.any():
@@ -231,9 +239,14 @@ class Calibrator(Stage):
             "calibrated": calibrated,
             "frames_solved": len(homographies),
         }
+        # Judge only rows that actually got metres: by-design nulls (unsolved
+        # stretches) are not evidence of a wrong homography.
+        solved_rows = df[df["x_m"].notna()]
         if calibrated and len(df):
+            stats["fraction_solved"] = round(float(len(solved_rows) / len(df)), 3)
+        if calibrated and len(solved_rows):
             inside = (
-                df["x_m"].between(-3, 108) & df["y_m"].between(-3, 71)
+                solved_rows["x_m"].between(-3, 108) & solved_rows["y_m"].between(-3, 71)
             ).mean()  # small margin: keepers and throw-ins stand off the pitch
             stats["fraction_on_pitch"] = round(float(inside), 3)
             if inside < 0.9:
@@ -249,5 +262,8 @@ class Calibrator(Stage):
             "homographies_px_to_m": (
                 {f: np.linalg.inv(H) for f, H in homographies.items()} if homographies else {}
             ),
+            # Consumers doing their own nearest-solve lookup (stages/ball) must
+            # apply the same staleness bound, in raw frame indices.
+            "solve_gap_frames": gap_cap,
         }
         return StageResult(self.name, df, artifacts=artifacts, stats=stats)

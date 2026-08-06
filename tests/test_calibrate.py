@@ -147,6 +147,39 @@ def test_per_frame_mode_projects_with_injected_solver(tmp_path, monkeypatch):
     assert result.artifacts["homographies_px_to_m"]
 
 
+def test_per_frame_gap_fill_scales_with_frame_stride(monkeypatch):
+    """With io.frame_stride > 1 the track frames are stride raw indices apart, so
+    the staleness gate must scale with the real solve cadence - not null the
+    frames sitting between two successful solves."""
+    H_pitch_to_img = np.linalg.inv(np.array(SCALE_H))
+    stride = 8
+
+    ctx = make_identity_ctx()
+    strided = ctx["identity"].table.assign(frame=lambda d: d["frame"] * stride)
+    ctx["identity"] = StageResult("identity", strided)
+    base_video = ctx["video"]
+
+    class StridedVideo:
+        meta = base_video.meta
+
+        def __iter__(self):
+            for f, img in base_video:
+                yield f * stride, img
+
+    ctx["video"] = StridedVideo()
+
+    stage = Calibrator({"homography": {"mode": "per_frame", "refresh_every_n_frames": 2}})
+    stage.setup()
+    monkeypatch.setattr(stage, "_load_keypoint_model", lambda: True)
+    monkeypatch.setattr(stage, "_solve_frame", lambda image: H_pitch_to_img.copy())
+
+    result = stage.run(ctx)
+    # Every sampled solve succeeded, so every row deserves metres; the old
+    # stride-blind cap (refresh * 3 = 6 < stride) nulled the in-between frames.
+    assert result.table["x_m"].notna().all()
+    assert result.artifacts["solve_gap_frames"] >= stride * 2
+
+
 def test_per_frame_unsolvable_frames_stay_null(monkeypatch):
     stage = Calibrator({"homography": {"mode": "per_frame", "refresh_every_n_frames": 1}})
     stage.setup()

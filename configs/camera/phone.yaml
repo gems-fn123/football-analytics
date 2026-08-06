@@ -3,7 +3,7 @@ description: Handheld, ball-following, shaky
 homography:
   mode: per_frame
   refresh_every_n_frames: 5
-  keypoint_model: models/weights/pitch_keypoints.pt
+  keypoint_model: models/weights/SV_kp.pth  # scripts/download_weights.sh step 2
 stabilisation:
   enabled: true
 expectations:

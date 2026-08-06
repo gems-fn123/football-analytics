@@ -139,6 +139,13 @@ class Tracker(Stage):
         if not Path(weights).exists():
             self.log.warning("stitch enabled but reid weights missing at %s; skipping", weights)
             return df, 0
+        # Construct before the (expensive) crop decode pass, and degrade the same
+        # way as missing weights: a truncated download must not kill tracking.
+        try:
+            embedder = Embedder(weights)
+        except Exception as exc:
+            self.log.warning("stitch reid weights unloadable at %s (%s); skipping", weights, exc)
+            return df, 0
 
         tracked = df[(df["track_id"] >= 0) & (df["cls"] != "ball")]
         max_crops = int(cfg.get("max_crops", 6))
@@ -156,11 +163,12 @@ class Tracker(Stage):
                 x1, y1 = max(int(row.x1), 0), max(int(row.y1), 0)
                 x2, y2 = min(int(row.x2), image.shape[1]), min(int(row.y2), image.shape[0])
                 if x2 - x1 >= 8 and y2 - y1 >= 16:
-                    crops.setdefault(int(row.track_id), []).append(image[y1:y2, x1:x2])
+                    # .copy(): a slice view would pin the whole decoded frame in
+                    # memory until embedding time - gigabytes on long videos.
+                    crops.setdefault(int(row.track_id), []).append(image[y1:y2, x1:x2].copy())
             if frame_idx >= last_needed:
                 break
 
-        embedder = Embedder(weights)
         info = {}
         for tid, group in tracked.groupby("track_id"):
             if not crops.get(int(tid)):
@@ -171,11 +179,12 @@ class Tracker(Stage):
                 "start": int(group["frame"].min()),
                 "end": int(group["frame"].max()),
                 "embedding": emb,
+                "cls": group["cls"].mode().iat[0],
             }
 
         mapping = stitch_tracks(
             info,
-            sim_threshold=float(cfg.get("sim_threshold", 0.65)),
+            sim_threshold=float(cfg.get("sim_threshold", 0.95)),
             margin=float(cfg.get("margin", 0.08)),
             max_gap_frames=int(cfg.get("max_gap_frames", 250)),
         )

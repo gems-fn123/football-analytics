@@ -3,7 +3,7 @@ licence: MIT
 track_activation_threshold: 0.25
 lost_track_buffer: 60
 minimum_matching_threshold: 0.85
-frame_rate: 25               # fallback only; the stage derives fps/stride from the video
+frame_rate: 25               # unused by the stage (it derives fps from the video); kept as documentation
 
 # Appearance stitching of fragmented tracks (OSNet x0_25, MIT, vendored).
 # Off by default: a false merge fuses two players, which corrupts more than
@@ -11,7 +11,11 @@ frame_rate: 25               # fallback only; the stage derives fps/stride from 
 stitch:
   enabled: false
   weights: models/weights/osnet_x0_25.pt
-  sim_threshold: 0.65
+  # OSNet embeddings are post-ReLU: cosine similarity compresses toward 1, so
+  # this sits far above zero-centred intuition. Measured on jersey-2023 with
+  # these weights: diff-player p99 is 0.93, same-player median 0.95 - see
+  # footy.reid.stitch docstring.
+  sim_threshold: 0.95
   margin: 0.08
   max_gap_frames: 250        # ~10 s at 25 fps
   max_crops: 6

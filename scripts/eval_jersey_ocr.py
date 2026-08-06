@@ -72,6 +72,9 @@ def main() -> int:
             print(f"  tracklet {t}: gt={gt[t]} voted={vote} readings={readings[:8]}")
 
     n = len(sample)
+    if not n:
+        print("no tracklets with both ground truth and images found; check the zip layout")
+        return 1
     print(f"\ntracklets: {n}  correct: {correct}  wrong: {wrong}  abstained: {abstain}")
     if correct + wrong:
         print(f"precision when voting: {correct / (correct + wrong):.2f}")

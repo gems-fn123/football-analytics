@@ -40,6 +40,21 @@ def test_ambiguous_candidates_abstain():
     assert m[2] == 2 and m[3] == 3
 
 
+def test_different_classes_never_merge():
+    """A referee fragment must not continue a player track, however similar the
+    appearance: OSNet similarities are compressed and cross-role lookalikes are
+    common, but class disagreement is exact evidence of different people."""
+    e = unit([1, 0.1, 0])
+    tracks = {
+        1: {"start": 0, "end": 50, "embedding": e, "cls": "player"},
+        2: {"start": 80, "end": 150, "embedding": e, "cls": "referee"},
+        3: {"start": 80, "end": 150, "embedding": e, "cls": "player"},
+    }
+    m = stitch_tracks(tracks)
+    assert m[2] == 2
+    assert m[3] == m[1]
+
+
 def test_gap_beyond_limit_does_not_merge():
     tracks = {
         1: {"start": 0, "end": 50, "embedding": unit([1, 0, 0])},

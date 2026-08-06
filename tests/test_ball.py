@@ -137,6 +137,41 @@ def test_uncalibrated_metres_are_null():
     assert df["x_m"].isna().all() and df["y_m"].isna().all()
 
 
+def test_per_frame_metres_respect_the_solve_gap_cap():
+    """A ball seen long after the last successful solve stays null - the same
+    'null, not stale' rule the calibrate stage applies to players."""
+    import numpy as np
+
+    stage = BallTracker({"max_speed_ms": 45.0, "max_gap_frames": 12, "reacquire_s": 1.0})
+    stage.setup()
+    n_frames = 40
+    frames_xy = {0: (100.0, 200.0, 0.9), 30: (400.0, 200.0, 0.9)}
+    ctx = {
+        "video": FakeVideo({}, n_frames=n_frames, width=768),
+        "detect": StageResult(
+            "detect",
+            ball_detections(frames_xy),
+            artifacts={"frames": list(range(n_frames))},
+            stats={"n_frames": n_frames},
+        ),
+        "config": Config(raw={"pitch": {"length_m": 105.0}}, match={}),
+        "calibrate": StageResult(
+            "calibrate",
+            pd.DataFrame(),
+            artifacts={
+                "homography": None,
+                "homographies_px_to_m": {0: np.eye(3)},
+                "solve_gap_frames": 6,
+            },
+        ),
+    }
+    result = stage.run(ctx)
+    df = result.table
+    assert df[df["frame"] == 0]["x_m"].notna().all()
+    assert df[df["frame"] == 30]["x_m"].isna().all()
+    assert result.stats["calibrated"] is True
+
+
 def test_no_candidates_is_survivable():
     result = run_ball({})
     assert result.table.empty

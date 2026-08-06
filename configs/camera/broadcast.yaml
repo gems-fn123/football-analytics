@@ -7,7 +7,11 @@ homography:
   refresh_every_n_frames: 5
   keypoint_model: models/weights/SV_kp.pth          # CC-BY-4.0, see NOTICE.md
   keypoint_grid: analysis/calib/keypoint_grid.json  # scripts/derive_keypoint_grid.py
-  min_score: 1.0    # heatmap margin over background; below this a peak is noise
+  # Any positive margin over background counts: the model's own decision boundary.
+  # Raising this starves RANSAC of points and WORSENS accuracy (held-out eval:
+  # median 1.59 px / p90 7.2 at 0.0 vs 2.47 / 77 at 1.0); min_points and the 8 px
+  # consistency gate in stages/calibrate are what reject bad solves.
+  min_score: 0.0
   min_points: 5     # RANSAC needs 4; 5+ leaves one for consensus
 expectations:
   players_visible: 15      # typical, not guaranteed

@@ -42,7 +42,11 @@ echo
 echo "[2/4] Pitch keypoint model - broadcast and phone profiles."
 echo "      NBJW HRNetV2 keypoint weights, CC-BY-4.0 (attribution in NOTICE.md):"
 if [ ! -f "$WEIGHTS_DIR/SV_kp.pth" ]; then
-  curl -L -o "$WEIGHTS_DIR/SV_kp.pth" "https://zenodo.org/records/12626395/files/SV_kp?download=1"
+  # Download to a .part file first: an interrupted transfer must not leave a
+  # truncated file that the existence guard then treats as done.
+  curl -fL -o "$WEIGHTS_DIR/SV_kp.pth.part" \
+    "https://zenodo.org/records/12626395/files/SV_kp?download=1"
+  mv "$WEIGHTS_DIR/SV_kp.pth.part" "$WEIGHTS_DIR/SV_kp.pth"
 fi
 echo "      $WEIGHTS_DIR/SV_kp.pth ($(du -h "$WEIGHTS_DIR/SV_kp.pth" 2>/dev/null | cut -f1))"
 echo "      Fixed-camera users can skip this:"
@@ -51,8 +55,9 @@ echo
 echo "[3/4] Re-ID weights - for the tracker's optional appearance stitching"
 echo "      (configs/tracker/bytetrack.yaml, stitch.enabled). OSNet x0_25, MIT:"
 if [ ! -f "$WEIGHTS_DIR/osnet_x0_25.pt" ]; then
-  curl -L -o "$WEIGHTS_DIR/osnet_x0_25.pt" \
+  curl -fL -o "$WEIGHTS_DIR/osnet_x0_25.pt.part" \
     "https://drive.usercontent.google.com/download?id=1rb8UN5ZzPKRc_xvtHlyDh-cSz88YX9hs&export=download&confirm=t"
+  mv "$WEIGHTS_DIR/osnet_x0_25.pt.part" "$WEIGHTS_DIR/osnet_x0_25.pt"
 fi
 echo "      $WEIGHTS_DIR/osnet_x0_25.pt ($(du -h "$WEIGHTS_DIR/osnet_x0_25.pt" 2>/dev/null | cut -f1))"
 echo

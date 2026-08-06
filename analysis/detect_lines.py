@@ -14,6 +14,10 @@ from pathlib import Path
 
 import cv2
 import numpy as np
+from scipy.spatial import cKDTree
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import conics  # noqa: E402
 
 # Hue band kept tight: the crowd in these stadiums wears a lot of teal (hue ~90),
 # which a loose upper bound pulls straight into the "grass" class.
@@ -22,26 +26,155 @@ GRASS_MIN_SAT = 60
 GRASS_MIN_VAL = 40
 
 
-def _keep_elongated(mask: np.ndarray, min_len: float = 22.0, min_ratio: float = 3.0) -> np.ndarray:
-    """Drop blobs that are not line-like, judged by PCA on their pixel coordinates."""
-    n, lab, stats, _ = cv2.connectedComponentsWithStats(
-        cv2.morphologyEx(mask, cv2.MORPH_CLOSE, np.ones((3, 3), np.uint8)), 8
-    )
+def ridge_response(bgr: np.ndarray) -> np.ndarray:
+    """Thin-bright-ridge response: a white top-hat on the Lab lightness channel.
+
+    Absolute colour thresholds fail here - sunlit grass is brighter than a shaded line,
+    and the lines carry a green cast - whereas a top-hat responds to the *shape* of the
+    intensity profile regardless of illumination.
+    """
+    lab = cv2.cvtColor(bgr, cv2.COLOR_BGR2Lab)
+    lch = cv2.GaussianBlur(lab[..., 0], (3, 3), 0)
+    k = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (13, 13))
+    return cv2.morphologyEx(lch, cv2.MORPH_TOPHAT, k)
+
+
+def static_overlay_mask(
+    video: str | Path, n_frames: int = 24, persist: float = 0.90, cache_dir: Path | None = None
+) -> np.ndarray | None:
+    """Pixels that stay bright and thin in *image* space while the camera moves.
+
+    A burnt-in broadcast graphic - a stock watermark, a score bug, a channel logo - is
+    fixed to the frame. Everything the pitch model cares about is fixed to the ground. So
+    the two separate on persistence alone, with no need to know what the graphic says or
+    looks like: as the camera pans, markings sweep across the image and the graphic does
+    not. On these clips the iStock watermark sits directly over the centre circle and was
+    dominating the conic fit, which is what made this worth doing properly rather than
+    special-casing.
+
+    Returns None when the camera barely moves, because then the test cannot distinguish
+    an overlay from a marking and claiming otherwise would delete real evidence.
+
+    Measured cost on clip0, against its verified homography: this removes ~3 000 px of
+    watermark but takes centre-circle recall from 58% to 42% and the touchline from 17%
+    to 3%, so it is **off by default**. The reason is a real limitation rather than a
+    tuning problem: clip0 pans horizontally, and a structure parallel to the pan - the
+    touchline above all - stays at the same image height throughout, so it looks exactly
+    as persistent as a burnt-in graphic. Testing "fixed to the ground" properly means
+    warping the frames into a common ground frame first, not testing "fixed to the image"
+    and hoping the camera moved the right way.
+
+    Two details are load-bearing. The field mask is applied *per frame*, otherwise the
+    accumulator fills with crowd - bright, textured, and the most persistent thing in
+    any stadium. And persistence is judged over the frames in which a pixel was actually
+    inside the field, not over all sampled frames, since a pixel the pitch only covers
+    half the time cannot respond in the other half.
+    """
+    video = Path(video)
+    cache = (cache_dir / f"overlay_{video.stem}.png") if cache_dir else None
+    if cache is not None and cache.exists():
+        return cv2.imread(str(cache), cv2.IMREAD_GRAYSCALE)
+
+    cap = cv2.VideoCapture(str(video))
+    total = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    idx = np.linspace(0, max(total - 1, 0), min(n_frames, max(total, 1))).astype(int)
+    acc = seen = None
+    n_read, first, last = 0, None, None
+    for i in idx:
+        cap.set(cv2.CAP_PROP_POS_FRAMES, int(i))
+        ok, img = cap.read()
+        if not ok:
+            continue
+        fld = cv2.erode((field_mask(img) > 0).astype(np.uint8), np.ones((11, 11), np.uint8))
+        r = ridge_response(img)
+        ins = r[fld > 0]
+        if ins.size < 100:
+            continue
+        med = float(np.median(ins))
+        mad = float(np.median(np.abs(ins - med))) * 1.4826
+        hit = ((r >= max(4.0, med + 4.0 * mad)) & (fld > 0)).astype(np.uint16)
+        acc = hit.copy() if acc is None else acc + hit
+        seen = fld.astype(np.uint16) if seen is None else seen + fld
+        first = img if first is None else first
+        last, n_read = img, n_read + 1
+    cap.release()
+    if acc is None or n_read < 6:
+        return None
+
+    # Did the camera move enough for persistence to mean anything? Phase correlation
+    # between the first and last sampled frame answers it in one number.
+    g0 = cv2.cvtColor(first, cv2.COLOR_BGR2GRAY).astype(np.float32)
+    g1 = cv2.cvtColor(last, cv2.COLOR_BGR2GRAY).astype(np.float32)
+    (dx, dy), _ = cv2.phaseCorrelate(g0, g1)
+    if float(np.hypot(dx, dy)) < 40.0:
+        return None
+
+    enough = seen >= max(6, int(0.5 * n_read))
+    persistent = enough & (acc >= persist * np.maximum(seen, 1))
+    out = cv2.dilate(persistent.astype(np.uint8) * 255, np.ones((3, 3), np.uint8))
+    if cache is not None:
+        cache.parent.mkdir(parents=True, exist_ok=True)
+        cv2.imwrite(str(cache), out)
+    return out
+
+
+def _hysteresis(resp: np.ndarray, field: np.ndarray, hi: float, lo: float) -> np.ndarray:
+    """Threshold at `hi`, then grow through connected pixels above `lo`.
+
+    A single threshold cannot work on a pitch marking, because one marking is not one
+    brightness: measured along clip0's known centre circle the ridge response runs from
+    3 to 67, so any level that excludes grass texture also chops the circle into arcs too
+    short to survive a length filter. Growing from confident seeds through weaker
+    connected evidence recovers the whole marking while still refusing to start anywhere
+    the evidence is only weak - which is what a plain low threshold would do.
+    """
+    strong = (resp >= hi) & (field > 0)
+    weak = ((resp >= lo) & (field > 0)).astype(np.uint8)
+    if not strong.any():
+        return np.zeros(resp.shape, np.uint8)
+    n, lab = cv2.connectedComponents(weak, 8)
+    keep = np.unique(lab[strong])
+    keep = keep[keep > 0]
+    if not len(keep):
+        return np.zeros(resp.shape, np.uint8)
+    flags = np.zeros(n, bool)
+    flags[keep] = True
+    return (flags[lab]).astype(np.uint8) * 255
+
+
+def _keep_thin_and_long(
+    mask: np.ndarray, max_stroke: float = 9.0, min_len: float = 25.0
+) -> np.ndarray:
+    """Keep components that are *thin and long*, whatever shape they run in.
+
+    The previous test measured PCA elongation - the ratio of a component's major to minor
+    spread - and demanded at least 3:1. That is a prior on straightness, not on being a
+    marking, and it silently deleted the centre circle: a closed rim is as wide as it is
+    tall, so it scores near 1:1 and never survived. Measuring the response along the known
+    circle in clip0 showed 57% of it clearing the intensity threshold and none of it
+    reaching the mask, which located the loss here rather than in the thresholding.
+
+    Thinness is twice the 95th percentile of the component's distance transform, and
+    length is area divided by that, which estimates centreline length for a curve as well
+    as for a straight run. The percentile rather than the maximum matters: a marking is
+    one connected component from end to end, so judging it by its single widest point
+    lets one fat patch - a line crossing another, or a scuff - delete the entire line.
+    """
+    m = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, np.ones((3, 3), np.uint8))
+    n, lab, stats, _ = cv2.connectedComponentsWithStats(m, 8)
+    dt = cv2.distanceTransform(m, cv2.DIST_L2, 5)
     out = np.zeros_like(mask)
     for i in range(1, n):
-        if stats[i, cv2.CC_STAT_AREA] < 12:
+        x, y, bw, bh, area = stats[i]
+        if area < 12:
             continue
-        ys, xs = np.nonzero(lab == i)
-        pts = np.column_stack([xs, ys]).astype(float)
-        pts -= pts.mean(0)
-        if len(pts) < 8:
+        sub = lab[y : y + bh, x : x + bw] == i
+        stroke = 2.0 * float(np.percentile(dt[y : y + bh, x : x + bw][sub], 95))
+        if stroke > max_stroke:
             continue
-        ev = np.linalg.svd(pts, compute_uv=False)
-        major = float(ev[0]) / np.sqrt(len(pts))
-        minor = float(ev[1]) / np.sqrt(len(pts)) + 1e-6
-        length = float(np.ptp(pts @ (np.linalg.svd(pts, full_matrices=False)[2][0])))
-        if length >= min_len and major / minor >= min_ratio:
-            out[lab == i] = 255
+        if area / max(stroke, 1.0) < min_len:
+            continue
+        out[y : y + bh, x : x + bw][sub] = 255
     return out
 
 
@@ -74,7 +207,11 @@ def field_mask(bgr: np.ndarray) -> np.ndarray:
     return filled * 255
 
 
-def line_mask(bgr: np.ndarray, player_boxes: np.ndarray | None = None) -> np.ndarray:
+def line_mask(
+    bgr: np.ndarray,
+    player_boxes: np.ndarray | None = None,
+    overlay: np.ndarray | None = None,
+) -> np.ndarray:
     """White markings inside the playing surface, with players removed.
 
     Player kits are the dominant false positive: a white shirt is a bright,
@@ -87,13 +224,9 @@ def line_mask(bgr: np.ndarray, player_boxes: np.ndarray | None = None) -> np.nda
     # dominates every line fit, and nothing useful lives in the outermost few pixels.
     field = cv2.erode(field, np.ones((11, 11), np.uint8))
 
-    # A painted line is a *thin bright ridge on a locally uniform background*, which is
-    # precisely what a white top-hat isolates. Absolute colour thresholds fail here:
-    # sunlit grass is brighter than a shaded line, and the lines carry a green cast.
-    lab = cv2.cvtColor(bgr, cv2.COLOR_BGR2Lab)
-    lch = cv2.GaussianBlur(lab[..., 0], (3, 3), 0)
-    k = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (13, 13))
-    tophat = cv2.morphologyEx(lch, cv2.MORPH_TOPHAT, k)
+    # A painted line is a thin bright ridge on a locally uniform background, which is
+    # precisely what a white top-hat isolates.
+    tophat = ridge_response(bgr)
 
     inside = tophat[field > 0]
     if inside.size < 100:
@@ -108,12 +241,19 @@ def line_mask(bgr: np.ndarray, player_boxes: np.ndarray | None = None) -> np.nda
     # clips (3.8k / 4.8k / 4.3k on the three tested here).
     med = float(np.median(inside))
     mad = float(np.median(np.abs(inside - med))) * 1.4826
-    thr = max(4.0, med + 4.0 * mad)
-    m = ((tophat >= thr) & (field > 0)).astype(np.uint8) * 255
+    m = _hysteresis(tophat, field, max(4.0, med + 4.0 * mad), max(2.0, med + 2.0 * mad))
 
-    # Keep only elongated structures. A painted line is long and thin; mown grass
-    # texture and shadow speckle are neither, and this is what separates them.
-    m = _keep_elongated(m)
+    # Keep only thin, long structures. A painted marking is thin and runs a long way;
+    # mown grass texture and shadow speckle are neither. Thinness rather than
+    # straightness, so that the centre circle survives.
+    m = _keep_thin_and_long(m)
+
+    # Burnt-in graphics come out *last*, after growth and filtering. Removing them from
+    # the field beforehand cuts long markings into fragments that the length filter then
+    # deletes, so a 20% loss of pixels turned into a 65% loss of evidence. Subtracting at
+    # the end leaves the connectivity that faint markings depend on intact.
+    if overlay is not None:
+        m[overlay > 0] = 0
 
     if player_boxes is not None and len(player_boxes):
         for x1, y1, x2, y2 in player_boxes:
@@ -198,30 +338,226 @@ def intersect(a: dict, b: dict) -> np.ndarray | None:
     return a["centroid"] + d1 * t[0]
 
 
-def fit_ellipse(mask: np.ndarray, lines: list[dict], img_shape) -> dict | None:
-    """Fit the centre circle: the largest blob of line pixels that is not a line."""
+def bow(line: dict, mask: np.ndarray, halfwidth: float = 4.0, bins: int = 8) -> float:
+    """Peak sideways deviation of the evidence under a fitted line, in pixels.
+
+    Hough finds straight segments, and the bottom of a projected centre circle is nearly
+    straight over a long span - so the circle is repeatedly detected as a *line*. That
+    matters twice over: erasing the detected lines removed 97% of clip0's centre circle,
+    and crediting a conic for pixels that a straight line already explains let a conic
+    draped along the halfway line outscore the true rim.
+
+    A chord of an arc bows away from its own best-fit line in a smooth, single-signed
+    curve, while a painted line does not. Measuring the deviation in bins along the line
+    detects that, and needs no prior knowledge of which markings are present.
+    """
+    ys, xs = np.nonzero(mask)
+    if not len(xs):
+        return 0.0
+    p = np.column_stack([xs, ys]).astype(float) - line["centroid"]
+    d = line["dir"]
+    t = p @ d
+    s = p @ np.array([-d[1], d[0]])
+    ext = float(np.hypot(*(line["p2"] - line["p1"]))) / 2.0
+    sel = (np.abs(s) <= halfwidth) & (np.abs(t) <= ext)
+    if sel.sum() < 30:
+        return 0.0
+    t, s = t[sel], s[sel]
+    edges = np.linspace(t.min(), t.max(), bins + 1)
+    means = [s[(t >= edges[i]) & (t <= edges[i + 1])].mean() for i in range(bins)
+             if ((t >= edges[i]) & (t <= edges[i + 1])).sum() >= 5]
+    return 0.0 if len(means) < 4 else float(np.ptp(means))
+
+
+def straight_lines(lines: list[dict], mask: np.ndarray, max_bow: float = 1.5) -> list[dict]:
+    """The merged lines that are genuinely straight, not chords of a circle.
+
+    The threshold is deliberately strict, because the two errors are not symmetric:
+    treating a real line as curved merely leaves some evidence uncredited, whereas
+    treating an arc as a line discards the one landmark that makes registration possible.
+    """
+    out = []
+    for ln in lines:
+        b = bow(ln, mask)
+        ln = {**ln, "bow": b}
+        if b <= max_bow:
+            out.append(ln)
+    return out
+
+
+def line_pixel_mask(lines: list[dict], shape, thickness: int = 7, margin: float = 0.15):
+    """Pixels already accounted for by straight markings.
+
+    Bounded by each line's detected extent rather than extended across the frame: a line
+    is only evidence where it was actually seen, and extending it discounts unrelated
+    pixels that happen to be collinear with it somewhere else.
+    """
+    m = np.zeros(shape[:2], np.uint8)
+    for ln in lines:
+        p1, p2 = ln["p1"], ln["p2"]
+        d = (p2 - p1) * margin
+        cv2.line(m, tuple((p1 - d).astype(int)), tuple((p2 + d).astype(int)), 255, thickness)
+    return m
+
+
+def _erase_lines(
+    mask: np.ndarray, lines: list[dict], thickness: int = 11, mode: str = "extend"
+) -> np.ndarray:
+    """Blank out the fitted straight lines so only curved evidence remains.
+
+    `mode` controls how far the erasure reaches: "extend" past the detected support,
+    "extent" only across it, or "none" to leave the mask alone.
+    """
+    if mode == "none":
+        return mask.copy()
     work = mask.copy()
-    for ln in lines[:12]:
-        cv2.line(work, tuple(ln["p1"].astype(int)), tuple(ln["p2"].astype(int)), 0, 9)
-    work = cv2.morphologyEx(work, cv2.MORPH_CLOSE, np.ones((7, 7), np.uint8))
-    cnts, _ = cv2.findContours(work, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
-    best = None
-    for c in cnts:
-        if len(c) < 40:
+    h, w = mask.shape
+    reach = float(2 * (h + w))
+    for ln in lines[:14]:
+        if mode == "extend":
+            c, d = ln["centroid"], ln["dir"]
+            a, b = (c - d * reach).astype(int), (c + d * reach).astype(int)
+        else:
+            a, b = ln["p1"].astype(int), ln["p2"].astype(int)
+        cv2.line(work, tuple(a), tuple(b), 0, thickness)
+    return work
+
+
+TOL_SCHEDULE = (16.0, 11.0, 7.0, 5.0, 3.5, 3.0, 3.0)
+
+
+def _grow_and_refit(C, pts, tols=TOL_SCHEDULE):
+    """Alternate between collecting inliers and refitting, seeded from a rough conic.
+
+    The tolerance is annealed from wide to tight. A seed fitted to one fragment of the
+    rim is biased - the algebraic fit of a short arc under-estimates its size - so at a
+    tight tolerance it can only ever re-find the fragment it came from. Starting wide
+    lets it reach the rest of the rim, and each refit pulls the estimate closer, so the
+    tolerance can then be closed without losing what was gained.
+    """
+    inl = None
+    for tol in tols:
+        d = conics.sampson(C, pts)
+        sel = d < tol
+        if sel.sum() < conics.MIN_POINTS:
+            return (C, inl) if inl is not None else (None, None)
+        nxt = conics.fit_conic(pts[sel])
+        if nxt is None:
+            return C, pts[sel]
+        C, inl = nxt, pts[sel]
+    return C, inl
+
+
+def fit_ellipses(mask: np.ndarray, lines: list[dict], img_shape, seed: int = 0,
+                 top_k: int = 8, erase: str = "none", erase_px: int = 11) -> list[dict]:
+    """Candidate images of a pitch circle, best first.
+
+    Deliberately returns *candidates* rather than an answer. Measured against clip0's
+    verified geometry, no local score reliably picks the centre circle out: only 58% of
+    its rim clears the intensity threshold, so a conic sweeping across several markings
+    genuinely explains more evidence than the true circle does (16.7 against 6.2 here).
+    That is not a tuning failure, it is the evidence being ambiguous.
+
+    The pose fit resolves it instead. A candidate bound to the wrong circle produces a
+    camera that fails to explain the rest of the pitch, and the full-model objective sees
+    that immediately - so the detector proposes and the registration disposes.
+
+    Each candidate carries the supporting pixels, and downstream fitting uses those
+    rather than the conic: a conic fitted to a partial arc extrapolates badly, while the
+    pixels it selects are still the right pixels.
+    """
+    h, w = img_shape[:2]
+    # Fit on *all* the evidence. Erasing the detected lines first is what destroyed the
+    # circle, because its flattest arcs are detected as lines; instead the straight
+    # markings are identified and discounted at scoring time, below.
+    straights = straight_lines(lines, mask)
+    line_px = line_pixel_mask(straights, mask.shape)
+    curved_mask = mask.copy()
+    curved_mask[line_px > 0] = 0
+
+    work = _erase_lines(mask, lines, erase_px, erase)
+    ys, xs = np.nonzero(work)
+    if len(xs) < 60:
+        return []
+    all_pts = np.column_stack([xs, ys]).astype(float)
+    rng = np.random.default_rng(seed)
+    n_lab, lab, stats, _ = cv2.connectedComponentsWithStats(work, 8)
+    order = np.argsort(-stats[1:, cv2.CC_STAT_AREA])[:14] + 1
+
+    comps: list[np.ndarray] = []
+    for i in order:
+        if stats[i, cv2.CC_STAT_AREA] < 25:
             continue
-        try:
-            e = cv2.fitEllipse(c)
-        except cv2.error:
+        cy_, cx_ = np.nonzero(lab == i)
+        p = np.column_stack([cx_, cy_]).astype(float)
+        if len(p) > 400:
+            p = p[rng.choice(len(p), 400, replace=False)]
+        comps.append(p)
+
+    seeds: list[np.ndarray] = list(comps)
+    # A rim broken by players standing on it is several components, and no single one of
+    # them describes the whole conic well enough to grow from. Pairs of components span
+    # far more of the rim, which is what makes the seed conic close enough to be useful.
+    for i in range(len(comps)):
+        for j in range(i + 1, min(i + 6, len(comps))):
+            seeds.append(np.vstack([comps[i], comps[j]]))
+    # Blind RANSAC, sampled *locally*: six points drawn uniformly from the whole residual
+    # set come from the same structure about as often as never (at a 25% inlier rate,
+    # 1 draw in 6 500), whereas six points drawn from one neighbourhood usually do.
+    tree = cKDTree(all_pts)
+    for _ in range(500):
+        c = all_pts[rng.integers(len(all_pts))]
+        near = tree.query_ball_point(c, r=180.0)
+        if len(near) >= 8:
+            seeds.append(all_pts[rng.choice(near, 8, replace=False)])
+
+    found: list[dict] = []
+    for p in seeds:
+        C0 = conics.fit_conic(p)
+        if C0 is None:
             continue
-        (ex, ey), (MA, ma), ang = e
-        if MA < 25 or ma < 6:
+        C, inl = _grow_and_refit(C0, all_pts)
+        if C is None or inl is None:
             continue
-        peri = cv2.arcLength(c, False)
-        score = peri
-        if best is None or score > best["score"]:
-            best = {"centre": (ex, ey), "axes": (MA, ma), "angle": ang, "score": score,
-                    "n_pts": len(c)}
-    return best
+        # Credit only evidence a straight marking does not already explain. Without this
+        # a conic running along the halfway line for part of its rim outscored the true
+        # centre circle, because by every local measure it really was the better
+        # explanation of the pixels.
+        keep = line_px[inl[:, 1].astype(int).clip(0, h - 1),
+                       inl[:, 0].astype(int).clip(0, w - 1)] == 0
+        curved = inl[keep]
+        m = conics.validate(C, curved, (h, w))
+        if m is None:
+            continue
+        # Both directions of agreement. Support alone (evidence spread around the rim) is
+        # satisfied by a conic draped over a line; rim precision alone (rim sitting on
+        # evidence) is satisfied by a small conic hiding inside a thick marking.
+        m["rim_precision"] = conics.rim_precision(C, curved_mask)
+        score = m["support"] * m["rim_precision"] * float(np.sqrt(min(m["n_pts"], 900)))
+        found.append({"conic": C, "points": curved, "score": float(score), **m})
+
+    found.sort(key=lambda r: -r["score"])
+    out: list[dict] = []
+    for c in found:
+        # Distinct candidates only, else the list fills with near-copies of one answer
+        # and the pose fit never gets a second hypothesis to consider.
+        if any(
+            float(np.hypot(c["centre"][0] - o["centre"][0], c["centre"][1] - o["centre"][1])) < 25.0
+            and abs(c["axes"][0] - o["axes"][0]) < 0.25 * max(o["axes"][0], 1.0)
+            for o in out
+        ):
+            continue
+        out.append(c)
+        if len(out) >= top_k:
+            break
+    return out
+
+
+def fit_ellipse(mask: np.ndarray, lines: list[dict], img_shape, seed: int = 0,
+                erase: str = "none", erase_px: int = 11) -> dict | None:
+    """Highest-scoring circle candidate, or None. See `fit_ellipses` for the caveats."""
+    c = fit_ellipses(mask, lines, img_shape, seed, 1, erase, erase_px)
+    return c[0] if c else None
 
 
 def annotate(bgr: np.ndarray, lines: list[dict], ell: dict | None, scale=2.0) -> np.ndarray:
@@ -255,7 +591,11 @@ def player_boxes_for(tracks_px: str | Path, frame_idx: int) -> np.ndarray:
 
 
 def analyse(
-    video: str, frame_idx: int, out_png: str | None = None, tracks_px: str | None = None
+    video: str,
+    frame_idx: int,
+    out_png: str | None = None,
+    tracks_px: str | None = None,
+    drop_overlays: bool = False,
 ) -> dict:
     cap = cv2.VideoCapture(video)
     cap.set(cv2.CAP_PROP_POS_FRAMES, frame_idx)
@@ -264,12 +604,19 @@ def analyse(
     if not ok:
         raise RuntimeError(f"cannot read frame {frame_idx} of {video}")
     boxes = player_boxes_for(tracks_px, frame_idx) if tracks_px else None
-    m = line_mask(img, boxes)
+    ov = (
+        static_overlay_mask(video, cache_dir=Path(__file__).resolve().parent / "calib")
+        if drop_overlays
+        else None
+    )
+    m = line_mask(img, boxes, ov)
     lines = merge(segments(m))
-    ell = fit_ellipse(m, lines, img.shape)
+    cands = fit_ellipses(m, lines, img.shape)
     if out_png:
-        cv2.imwrite(out_png, annotate(img, lines, ell))
-    return {"image": img, "mask": m, "lines": lines, "ellipse": ell, "field": field_mask(img)}
+        cv2.imwrite(out_png, annotate(img, lines, cands[0] if cands else None))
+    return {"image": img, "mask": m, "lines": lines,
+            "ellipse": cands[0] if cands else None, "ellipses": cands,
+            "straight": straight_lines(lines, m), "field": field_mask(img), "overlay": ov}
 
 
 if __name__ == "__main__":
@@ -286,5 +633,8 @@ if __name__ == "__main__":
     if r["ellipse"]:
         e = r["ellipse"]
         print(f"  ELLIPSE centre ({e['centre'][0]:.1f},{e['centre'][1]:.1f}) "
-              f"axes ({e['axes'][0]:.1f},{e['axes'][1]:.1f}) angle {e['angle']:.1f} pts {e['n_pts']}")
+              f"axes ({e['axes'][0]:.1f},{e['axes'][1]:.1f}) angle {e['angle']:.1f} "
+              f"support {e['support']:.2f} pts {e['n_pts']}")
+    else:
+        print("  ELLIPSE none")
     print("wrote", out)

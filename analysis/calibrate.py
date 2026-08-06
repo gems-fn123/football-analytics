@@ -55,6 +55,104 @@ def homography_from(params: np.ndarray, cx: float, cy: float) -> np.ndarray:
     return H
 
 
+def params_from_homography(H: np.ndarray, cx: float, cy: float) -> np.ndarray | None:
+    """Recover camera parameters from a ground-plane homography (Zhang's method).
+
+    A homography by itself cannot be checked against anything that lives off the ground
+    plane — player heights, for instance — because it only maps z = 0. Recovering the
+    camera makes those checks possible on registrations that were produced as a bare
+    matrix, such as the hand-seeded reference.
+
+    Assumes a square-pixel pinhole with the principal point at (cx, cy). Orthonormality
+    of the first two rotation columns then fixes the focal length:
+        r1 . r2 = 0  =>  f^2 = -(h1x h2x + h1y h2y) / (h1z h2z)
+    Returns None when that yields no positive f, which means the matrix is not the
+    homography of a real camera looking at a plane.
+    """
+    h1, h2 = H[:, 0], H[:, 1]
+    a = np.array([h1[0] - cx * h1[2], h1[1] - cy * h1[2], h1[2]])
+    b = np.array([h2[0] - cx * h2[2], h2[1] - cy * h2[2], h2[2]])
+    denom = a[2] * b[2]
+    if abs(denom) < 1e-15:
+        return None
+    f2 = -(a[0] * b[0] + a[1] * b[1]) / denom
+    if not np.isfinite(f2) or f2 <= 0:
+        return None
+    f = float(np.sqrt(f2))
+
+    Kinv = np.array([[1 / f, 0, -cx / f], [0, 1 / f, -cy / f], [0, 0, 1.0]])
+    r1, r2 = Kinv @ h1, Kinv @ h2
+    s = float(np.sqrt(np.linalg.norm(r1) * np.linalg.norm(r2)))
+    if s < 1e-12:
+        return None
+
+    # The overall scale of H is defined only up to sign; pick the one that puts the
+    # camera above the pitch rather than below it.
+    for sign in (1.0, -1.0):
+        a1, a2, t = sign * r1 / s, sign * r2 / s, sign * (Kinv @ H[:, 2]) / s
+        R = np.column_stack([a1, a2, np.cross(a1, a2)])
+        # Nearest true rotation: a1 and a2 are only approximately orthonormal.
+        U, _, Vt = np.linalg.svd(R)
+        R = U @ np.diag([1.0, 1.0, float(np.linalg.det(U @ Vt))]) @ Vt
+        C = -R.T @ t
+        if C[2] > 0:
+            break
+    else:
+        return None
+
+    # Invert `rotation()`'s composition R = Rr @ flip @ Rx @ Rz. Working it through, the
+    # bottom row of R is (-cos t sin p, cos t cos p, sin t) and the last column is
+    # (-sin r cos t, -cos r cos t, sin t), which gives all three angles directly.
+    tilt = float(np.arcsin(np.clip(R[2, 2], -1.0, 1.0)))
+    pan = float(np.arctan2(-R[2, 0], R[2, 1]))
+    roll = float(np.arctan2(-R[0, 2], -R[1, 2]))
+    return np.array([C[0], C[1], C[2], pan, tilt, roll, f], float)
+
+
+def fit_params_to_homography(H: np.ndarray, cx: float, cy: float, shape=None) -> np.ndarray:
+    """Closest camera-model pose to an arbitrary homography, by reprojection.
+
+    A homography has 8 degrees of freedom; the camera model here has 7, and constrains
+    square pixels with the principal point at the image centre. So a homography solved
+    from point correspondences generally is *not* reachable by the camera model - clip0's
+    verified reference is not, and `params_from_homography` returns None for it because
+    the focal length comes out imaginary.
+
+    That matters for interpreting accuracy numbers: pose search cannot reproduce such a
+    reference exactly, so there is a floor below which the comparison measures the model
+    mismatch rather than the search. This finds the best reachable approximation, which
+    is what that floor should be measured against.
+    """
+    from scipy.optimize import least_squares
+
+    h, w = shape if shape is not None else (int(2 * cy), int(2 * cx))
+    g = np.stack(np.meshgrid(np.linspace(0, pm.LENGTH, 24),
+                             np.linspace(0, pm.WIDTH, 16)), -1).reshape(-1, 2)
+    tgt = project(H, g)
+    seen = (tgt[:, 0] > -2 * w) & (tgt[:, 0] < 3 * w) & (tgt[:, 1] > -2 * h) & (tgt[:, 1] < 3 * h)
+    g, tgt = g[seen], tgt[seen]
+
+    def resid(p):
+        d = project(homography_from(p, cx, cy), g) - tgt
+        return np.clip(d, -1e4, 1e4).ravel()
+
+    best, best_cost = None, np.inf
+    rng = np.random.default_rng(0)
+    for _ in range(60):
+        p0 = np.array([rng.uniform(-20, pm.LENGTH + 20), rng.uniform(-140, 140),
+                       rng.uniform(8, 45), rng.uniform(-np.pi, np.pi),
+                       rng.uniform(-1.2, -0.05), rng.uniform(-0.1, 0.1),
+                       rng.uniform(400, 2600)])
+        try:
+            r = least_squares(resid, p0, bounds=(BOUNDS_LO, BOUNDS_HI),
+                              loss="soft_l1", f_scale=8.0, max_nfev=300)
+        except ValueError:
+            continue
+        if r.cost < best_cost:
+            best, best_cost = r.x, r.cost
+    return best
+
+
 def project(H: np.ndarray, pts_m: np.ndarray) -> np.ndarray:
     p = np.column_stack([pts_m, np.ones(len(pts_m))]) @ H.T
     z = p[:, 2:3]
@@ -86,10 +184,13 @@ def distance_transform(mask: np.ndarray) -> np.ndarray:
     return cv2.distanceTransform(inv, cv2.DIST_L2, 3)
 
 
-# Physically plausible broadcast camera. Bounds exist to make absurd poses
-# unreachable rather than merely unlikely.
-BOUNDS_LO = np.array([-80.0, -160.0, 4.0, -1.5, 0.02, -0.45, 250.0])
-BOUNDS_HI = np.array([185.0, 160.0, 80.0, 1.5, 1.25, 0.45, 4500.0])
+# Physically plausible broadcast camera. Bounds exist to make absurd poses unreachable
+# rather than merely unlikely. Tilt is *negative* for a camera above the pitch: solving
+# the rotation chain for "look-at target lands on the principal point" gives
+# tan(tilt) = -Cz / horiz, so the old `tilt >= 0.02` locked the optimiser out of every
+# downward-looking camera there is.
+BOUNDS_LO = np.array([-90.0, -190.0, 3.0, -np.pi, -1.45, -0.5, 250.0])
+BOUNDS_HI = np.array([195.0, 190.0, 90.0, np.pi, -0.005, 0.5, 5000.0])
 
 
 def fit(

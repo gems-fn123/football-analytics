@@ -27,12 +27,25 @@ CLIPS = {
 }
 
 
-def compare_to(H_a: np.ndarray, H_b: np.ndarray) -> float:
-    """Mean pixel disagreement between two registrations over the visible pitch."""
+def compare_to(H_a: np.ndarray, H_b: np.ndarray, shape=(432, 768)) -> float:
+    """Median pixel disagreement between two registrations, over the *visible* pitch.
+
+    Restricted to pitch points that the reference puts inside the frame. Measured over
+    the whole pitch instead, the number is dominated by ground far outside the shot,
+    where two registrations may disagree by thousands of pixels while agreeing closely on
+    everything that can actually be seen - which inverted the ranking of candidates here
+    until it was corrected.
+    """
+    h, w = shape
     g = np.stack(
-        np.meshgrid(np.linspace(20, 90, 12), np.linspace(5, 63, 10)), -1
+        np.meshgrid(np.linspace(0, pm.LENGTH, 60), np.linspace(0, pm.WIDTH, 40)), -1
     ).reshape(-1, 2)
-    ua, ub = project(H_a, g), project(H_b, g)
+    ub = project(H_b, g)
+    seen = (ub[:, 0] >= 0) & (ub[:, 0] < w) & (ub[:, 1] >= 0) & (ub[:, 1] < h)
+    if seen.sum() < 10:
+        return float("nan")
+    ua = project(H_a, g[seen])
+    ub = ub[seen]
     ok = np.isfinite(ua).all(1) & np.isfinite(ub).all(1)
     return float(np.median(np.linalg.norm(ua[ok] - ub[ok], axis=1)))
 
@@ -43,18 +56,28 @@ def main() -> int:
     for clip, (video, frame) in CLIPS.items():
         r = analyse(str(ROOT / video), frame,
                     None, str(ROOT / "data/processed" / clip / "tracks_px.parquet"))
-        mask, img = r["mask"], r["image"]
+        mask, img, ell = r["mask"], r["image"], r["ellipse"]
         print(f"\n=== {clip} (frame {frame}) — {int((mask>0).sum())} line pixels ===")
-        best = auto_fit(mask, n_samples=6000, n_refine=35, seed=7)
+        if ell is None:
+            print("    no circle detected — falling back to line evidence alone")
+        else:
+            print(f"    circle: {ell['n_pts']} rim px, support {ell['support']:.2f}, "
+                  f"axis ratio {ell['axis_ratio']:.2f}")
+        best = auto_fit(mask, ell, n_samples=6000, n_refine=35, seed=7)
         H = np.array(best["H"])
         s = sanity(H, mask.shape)
+        cpx = "n/a" if best["circle_px"] is None else f"{best['circle_px']:.1f}px"
         print(f"    F1 {best['f1']:.3f} (P {best['precision']:.3f} R {best['recall']:.3f})  "
               f"median {best['median_px']:.2f}px  visible {best['visible']}  "
               f"px/m@centre {s['px_per_metre_at_centre']}")
+        print(f"    bound to {best['circle']} circle, residual {cpx}  "
+              f"quality {best['quality']:.3f}")
         cv2.imwrite(str(scratch / f"auto_{clip}.png"), overlay(img, H))
 
         rec = {"clip": clip, "frame": frame, "video": video,
-               "H_pitch_to_image": H.tolist(), **{k: float(v) for k, v in
+               "H_pitch_to_image": H.tolist(), "circle": best["circle"],
+               "circle_px": best["circle_px"], "quality": float(best["quality"]),
+               **{k: float(v) for k, v in
                [("f1", best["f1"]), ("precision", best["precision"]),
                 ("recall", best["recall"]), ("median_px", best["median_px"]),
                 ("visible", best["visible"])]}, "sanity": s}

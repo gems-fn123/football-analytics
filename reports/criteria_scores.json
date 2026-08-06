@@ -1,0 +1,250 @@
+{
+  "clip0": {
+    "clip": "clip0",
+    "n_frames": 807,
+    "n_detection_rows": 12112,
+    "median_persons_per_frame": 15.0,
+    "p95_persons_per_frame": 18.0,
+    "max_persons_per_frame": 20,
+    "ground_truth_on_pitch": 15,
+    "recall_vs_ground_truth": 1.0,
+    "zero_person_frame_frac": 0.0,
+    "ball_frame_fraction": 0.415,
+    "n_track_ids": 87,
+    "median_track_life_frames": 102.0,
+    "team_coverage": 0.77,
+    "team_home": 31,
+    "team_away": 31,
+    "team_balance": 1.0,
+    "team_role_counts": {
+      "away": 31,
+      "home": 31,
+      "referee": 5
+    },
+    "ball_rows": 401,
+    "ball_interpolated_frac": 0.172,
+    "metres_nan_frac": 1.0,
+    "speed_nan_frac": 1.0,
+    "shirt_resolved_frac": 0.0,
+    "player_resolved_frac": 0.0,
+    "checks": {
+      "C-B1 median persons/frame >= 10": {
+        "pass": true,
+        "value": 15.0
+      },
+      "C-B2 median persons/frame <= 28": {
+        "pass": true,
+        "value": 15.0
+      },
+      "C-B3 median persons/frame <= 35 (crowd)": {
+        "pass": true,
+        "value": 15.0
+      },
+      "C-B4 ball in >= 20% frames": {
+        "pass": true,
+        "value": 0.415
+      },
+      "C-B5 zero-person frames <= 5%": {
+        "pass": true,
+        "value": 0.0
+      },
+      "C-C1 median track life >= 25 frames": {
+        "pass": true,
+        "value": 102.0
+      },
+      "C-C2 n_track_ids <= 5x median persons": {
+        "pass": false,
+        "value": "87 vs cap 75"
+      },
+      "C-D1 team coverage >= 60%": {
+        "pass": true,
+        "value": 0.77
+      },
+      "C-D2 home/away balance >= 0.40": {
+        "pass": true,
+        "value": 1.0
+      },
+      "C-E1 ball.parquet non-empty": {
+        "pass": true,
+        "value": 401
+      },
+      "C-E2 interpolated <= 50%": {
+        "pass": true,
+        "value": 0.172
+      },
+      "P-1 metres 100% NaN (predicted)": {
+        "pass": true,
+        "value": 1.0
+      },
+      "P-3 speeds 100% NaN (predicted)": {
+        "pass": true,
+        "value": 1.0
+      }
+    }
+  },
+  "clip1": {
+    "clip": "clip1",
+    "n_frames": 880,
+    "n_detection_rows": 17246,
+    "median_persons_per_frame": 18.5,
+    "p95_persons_per_frame": 24.0,
+    "max_persons_per_frame": 27,
+    "ground_truth_on_pitch": 20,
+    "recall_vs_ground_truth": 0.925,
+    "zero_person_frame_frac": 0.0,
+    "ball_frame_fraction": 0.466,
+    "n_track_ids": 179,
+    "median_track_life_frames": 46.0,
+    "team_coverage": 0.631,
+    "team_home": 62,
+    "team_away": 48,
+    "team_balance": 0.774,
+    "team_role_counts": {
+      "home": 62,
+      "away": 48,
+      "referee": 3
+    },
+    "ball_rows": 502,
+    "ball_interpolated_frac": 0.237,
+    "metres_nan_frac": 1.0,
+    "speed_nan_frac": 1.0,
+    "shirt_resolved_frac": 0.0,
+    "player_resolved_frac": 0.0,
+    "checks": {
+      "C-B1 median persons/frame >= 10": {
+        "pass": true,
+        "value": 18.5
+      },
+      "C-B2 median persons/frame <= 28": {
+        "pass": true,
+        "value": 18.5
+      },
+      "C-B3 median persons/frame <= 35 (crowd)": {
+        "pass": true,
+        "value": 18.5
+      },
+      "C-B4 ball in >= 20% frames": {
+        "pass": true,
+        "value": 0.466
+      },
+      "C-B5 zero-person frames <= 5%": {
+        "pass": true,
+        "value": 0.0
+      },
+      "C-C1 median track life >= 25 frames": {
+        "pass": true,
+        "value": 46.0
+      },
+      "C-C2 n_track_ids <= 5x median persons": {
+        "pass": false,
+        "value": "179 vs cap 92"
+      },
+      "C-D1 team coverage >= 60%": {
+        "pass": true,
+        "value": 0.631
+      },
+      "C-D2 home/away balance >= 0.40": {
+        "pass": true,
+        "value": 0.774
+      },
+      "C-E1 ball.parquet non-empty": {
+        "pass": true,
+        "value": 502
+      },
+      "C-E2 interpolated <= 50%": {
+        "pass": true,
+        "value": 0.237
+      },
+      "P-1 metres 100% NaN (predicted)": {
+        "pass": true,
+        "value": 1.0
+      },
+      "P-3 speeds 100% NaN (predicted)": {
+        "pass": true,
+        "value": 1.0
+      }
+    }
+  },
+  "clip2": {
+    "clip": "clip2",
+    "n_frames": 364,
+    "n_detection_rows": 6515,
+    "median_persons_per_frame": 18.0,
+    "p95_persons_per_frame": 21.0,
+    "max_persons_per_frame": 26,
+    "ground_truth_on_pitch": 17,
+    "recall_vs_ground_truth": 1.059,
+    "zero_person_frame_frac": 0.0,
+    "ball_frame_fraction": 0.192,
+    "n_track_ids": 66,
+    "median_track_life_frames": 50.5,
+    "team_coverage": 0.561,
+    "team_home": 16,
+    "team_away": 21,
+    "team_balance": 0.762,
+    "team_role_counts": {
+      "away": 21,
+      "home": 16
+    },
+    "ball_rows": 87,
+    "ball_interpolated_frac": 0.207,
+    "metres_nan_frac": 1.0,
+    "speed_nan_frac": 1.0,
+    "shirt_resolved_frac": 0.0,
+    "player_resolved_frac": 0.0,
+    "checks": {
+      "C-B1 median persons/frame >= 10": {
+        "pass": true,
+        "value": 18.0
+      },
+      "C-B2 median persons/frame <= 28": {
+        "pass": true,
+        "value": 18.0
+      },
+      "C-B3 median persons/frame <= 35 (crowd)": {
+        "pass": true,
+        "value": 18.0
+      },
+      "C-B4 ball in >= 20% frames": {
+        "pass": false,
+        "value": 0.192
+      },
+      "C-B5 zero-person frames <= 5%": {
+        "pass": true,
+        "value": 0.0
+      },
+      "C-C1 median track life >= 25 frames": {
+        "pass": true,
+        "value": 50.5
+      },
+      "C-C2 n_track_ids <= 5x median persons": {
+        "pass": true,
+        "value": "66 vs cap 90"
+      },
+      "C-D1 team coverage >= 60%": {
+        "pass": false,
+        "value": 0.561
+      },
+      "C-D2 home/away balance >= 0.40": {
+        "pass": true,
+        "value": 0.762
+      },
+      "C-E1 ball.parquet non-empty": {
+        "pass": true,
+        "value": 87
+      },
+      "C-E2 interpolated <= 50%": {
+        "pass": true,
+        "value": 0.207
+      },
+      "P-1 metres 100% NaN (predicted)": {
+        "pass": true,
+        "value": 1.0
+      },
+      "P-3 speeds 100% NaN (predicted)": {
+        "pass": true,
+        "value": 1.0
+      }
+    }
+  }
+}

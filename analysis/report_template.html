@@ -1,0 +1,325 @@
+<title>Match Passage Report — Blue vs White</title>
+<style>
+  :root{
+    --bg:#0C1116; --panel:#141C23; --panel-2:#1A242C; --rule:#26333D;
+    --ink:#E9EFF4; --ink-2:#A9B7C3; --ink-3:#74838F;
+    --turf:#2FA36B; --turf-dim:#1D6B47;
+    --home:#4A86EE; --away:#D8DEE5;
+    --warn:#D9A45B; --stop:#E0705C;
+    --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+    --sans:ui-sans-serif,system-ui,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --mono:ui-monospace,"Cascadia Mono","SF Mono",Menlo,Consolas,monospace;
+  }
+  @media (prefers-color-scheme:light){
+    :root{
+      --bg:#F2F5F7; --panel:#FFFFFF; --panel-2:#F7F9FA; --rule:#DBE2E8;
+      --ink:#0E1519; --ink-2:#465561; --ink-3:#6E7E8B;
+      --turf:#1D7A4F; --turf-dim:#2FA36B;
+      --home:#1F4FA8; --away:#8A939C;
+      --warn:#8A5A12; --stop:#B23A28;
+    }
+  }
+  :root[data-theme="light"]{
+    --bg:#F2F5F7; --panel:#FFFFFF; --panel-2:#F7F9FA; --rule:#DBE2E8;
+    --ink:#0E1519; --ink-2:#465561; --ink-3:#6E7E8B;
+    --turf:#1D7A4F; --turf-dim:#2FA36B;
+    --home:#1F4FA8; --away:#8A939C;
+    --warn:#8A5A12; --stop:#B23A28;
+  }
+  :root[data-theme="dark"]{
+    --bg:#0C1116; --panel:#141C23; --panel-2:#1A242C; --rule:#26333D;
+    --ink:#E9EFF4; --ink-2:#A9B7C3; --ink-3:#74838F;
+    --turf:#2FA36B; --turf-dim:#1D6B47;
+    --home:#4A86EE; --away:#D8DEE5;
+    --warn:#D9A45B; --stop:#E0705C;
+  }
+
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);
+       font-size:15.5px;line-height:1.6;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 22px 90px}
+
+  /* ---------- masthead ---------- */
+  .top{padding:44px 0 26px;border-bottom:1px solid var(--rule)}
+  .kicker{font-family:var(--mono);font-size:11px;letter-spacing:.18em;text-transform:uppercase;
+          color:var(--turf);margin:0 0 12px}
+  h1{font-family:var(--serif);font-size:clamp(28px,4.2vw,42px);line-height:1.06;
+     letter-spacing:-.02em;margin:0;font-weight:700;text-wrap:balance}
+  .sub{color:var(--ink-2);margin:14px 0 0;max-width:64ch}
+  .fixture{display:flex;align-items:center;gap:16px;margin:26px 0 0;flex-wrap:wrap}
+  .side{display:flex;align-items:center;gap:9px;font-weight:650;font-size:17px}
+  .swatch{width:15px;height:15px;border-radius:3px;border:1px solid var(--rule)}
+  .vs{font-family:var(--mono);color:var(--ink-3);font-size:12px;letter-spacing:.1em}
+  .stamp{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--ink-3);
+         text-align:right;line-height:1.7}
+
+  /* ---------- headline stats ---------- */
+  .band{display:grid;grid-template-columns:repeat(auto-fit,minmax(148px,1fr));
+        gap:1px;background:var(--rule);border:1px solid var(--rule);
+        border-radius:10px;overflow:hidden;margin:26px 0 8px}
+  .stat{background:var(--panel);padding:15px 16px 13px}
+  .stat .lab{font-family:var(--mono);font-size:9.5px;letter-spacing:.13em;
+             text-transform:uppercase;color:var(--ink-3);margin:0 0 7px}
+  .stat .big{font-family:var(--serif);font-size:31px;line-height:1;font-weight:700;
+             font-variant-numeric:tabular-nums;margin:0}
+  .stat .unit{font-size:12.5px;color:var(--ink-3);font-family:var(--sans);font-weight:400}
+  .stat .sm{font-size:11.5px;color:var(--ink-3);margin:6px 0 0}
+
+  /* ---------- possession bar ---------- */
+  .pbar{display:flex;height:30px;border-radius:6px;overflow:hidden;margin:8px 0 6px;
+        border:1px solid var(--rule)}
+  .pbar span{display:flex;align-items:center;font-family:var(--mono);font-size:11.5px;
+             font-weight:700;padding:0 10px}
+  .pbar .h{background:var(--home);color:#fff;justify-content:flex-start}
+  .pbar .a{background:var(--away);color:#0E1519;justify-content:flex-end}
+
+  section{margin:52px 0 0;scroll-margin-top:20px}
+  h2{font-family:var(--serif);font-size:24px;font-weight:700;letter-spacing:-.012em;
+     margin:0 0 5px;display:flex;gap:12px;align-items:baseline;text-wrap:balance}
+  h2 .n{font-family:var(--mono);font-size:.6em;color:var(--turf);font-weight:400}
+  h3{font-family:var(--serif);font-size:17.5px;margin:30px 0 5px;font-weight:700}
+  .lede{color:var(--ink-2);margin:0 0 16px;max-width:68ch}
+  p{margin:0 0 14px;max-width:68ch}
+  code{font-family:var(--mono);font-size:.86em;background:var(--panel-2);
+       padding:.1em .36em;border-radius:3px}
+
+  figure{margin:20px 0;background:var(--panel);border:1px solid var(--rule);
+         border-radius:10px;padding:16px 16px 10px;overflow-x:auto}
+  figure svg{max-width:100%;height:auto;display:block;margin:0 auto}
+  figcaption{font-size:12.5px;color:var(--ink-3);margin-top:12px;padding-top:10px;
+             border-top:1px solid var(--rule)}
+  figcaption b{color:var(--ink-2)}
+
+  .split{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px;margin:18px 0}
+  .card{background:var(--panel);border:1px solid var(--rule);border-radius:10px;padding:15px 17px}
+  .card h4{margin:0 0 10px;font-size:13px;font-family:var(--mono);font-weight:600;
+           letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)}
+  .kv{display:flex;justify-content:space-between;gap:12px;padding:5px 0;
+      border-bottom:1px dotted var(--rule);font-size:13.5px}
+  .kv:last-child{border-bottom:none}
+  .kv b{font-family:var(--mono);font-variant-numeric:tabular-nums}
+
+  .tw{overflow-x:auto;margin:18px 0;border:1px solid var(--rule);border-radius:10px;
+      background:var(--panel)}
+  table{border-collapse:collapse;width:100%;font-size:13px;min-width:640px}
+  th,td{padding:8px 12px;border-bottom:1px solid var(--rule);text-align:left}
+  thead th{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;
+           color:var(--ink-3);background:var(--panel-2);position:sticky;top:0;font-weight:600}
+  td.num,th.num{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums}
+  tbody tr:last-child td{border-bottom:none}
+  tbody tr:hover{background:var(--panel-2)}
+  .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:7px}
+  .dot.home{background:var(--home)} .dot.away{background:var(--away)}
+  .band-tag,.b-deep,.b-mid,.b-high{font-family:var(--mono);font-size:10px;padding:1.5px 6px;
+       border-radius:10px;letter-spacing:.06em}
+  .b-deep{background:rgba(74,134,238,.16);color:var(--home)}
+  .b-mid{background:rgba(47,163,107,.16);color:var(--turf)}
+  .b-high{background:rgba(217,164,91,.18);color:var(--warn)}
+
+  .note{border-left:3px solid var(--turf);background:var(--panel);padding:14px 17px;
+        border-radius:0 8px 8px 0;margin:20px 0}
+  .note.warn{border-left-color:var(--warn)}
+  .note.stop{border-left-color:var(--stop)}
+  .note .t{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;
+           color:var(--ink-3);margin:0 0 7px}
+  .note p{margin:0 0 8px;font-size:14px}
+  .note p:last-child{margin:0}
+  ul{max-width:68ch;padding-left:20px} li{margin:0 0 7px}
+  footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--rule);
+         font-size:12.5px;color:var(--ink-3)}
+  @media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<div class="wrap">
+
+  <header class="top">
+    <p class="kicker">Match passage report · synthetic identities</p>
+    <h1>Blue break the away press and attack the right</h1>
+    <p class="sub">A {{DURATION}}-second passage from kickoff, reconstructed from a single
+      panning broadcast camera. Every position below is in pitch metres on a
+      105 × 68 m model, not pixels — the camera motion has been removed.</p>
+    <div class="fixture">
+      <span class="side"><span class="swatch" style="background:#1F4FA8"></span>Blue <span class="vs">HOME</span></span>
+      <span class="vs">versus</span>
+      <span class="side"><span class="swatch" style="background:#E6E6E6"></span>White <span class="vs">AWAY</span></span>
+      <span class="stamp">{{FRAMES}} frames · 25 fps<br>{{PLAYERS}} tracked players · {{ONCAM}} on camera</span>
+    </div>
+  </header>
+
+  <div class="band">
+    <div class="stat"><p class="lab">Possession</p><p class="big">{{POSS_HOME}}<span class="unit">%</span></p><p class="sm">Blue, of {{POSS_FRAMES}} attributed frames</p></div>
+    <div class="stat"><p class="lab">Blue final third</p><p class="big">{{H_ATT}}<span class="unit">%</span></p><p class="sm">of player-time in the attacking third</p></div>
+    <div class="stat"><p class="lab">White own third</p><p class="big">{{A_DEF}}<span class="unit">%</span></p><p class="sm">pinned in their defensive third</p></div>
+    <div class="stat"><p class="lab">Top speed</p><p class="big">{{TOPSPEED}}<span class="unit">m/s</span></p><p class="sm">≈ {{TOPSPEED}} × 3.6 km/h, Blue</p></div>
+    <div class="stat"><p class="lab">Sprints</p><p class="big">{{SPRINTS}}</p><p class="sm">bursts above 7 m/s</p></div>
+  </div>
+
+  <div class="pbar">
+    <span class="h" style="width:{{POSS_HOME}}%">BLUE {{POSS_HOME}}%</span>
+    <span class="a" style="width:{{POSS_AWAY}}%">{{POSS_AWAY}}% WHITE</span>
+  </div>
+
+  <section>
+    <h2><span class="n">1</span>The passage</h2>
+    <p class="lede">What the numbers say happened, in order.</p>
+    <p>Blue kick off and keep the ball almost throughout — <b>{{POSS_HOME}}%</b> of the
+      frames where any player is within 3 m of it. They move it left-to-right, spending
+      <b>{{H_ATT}}%</b> of their player-time in the attacking third against
+      <b>{{A_ATT}}%</b> for White, who are pinned back: over half of White's
+      player-time (<b>{{A_DEF}}%</b>) is spent in their own defensive third.</p>
+    <p>The shape numbers say the same thing from the other direction. Blue's team
+      centroid sits at <b>{{H_CENT}} m</b> from the left goal, White's at
+      <b>{{A_CENT}} m</b> — the two lines are {{A_CENT}}−{{H_CENT}} m apart with White
+      deeper in their own half, which is what a defending block looks like. Both sides
+      hold a similar width ({{H_WIDTH}} m and {{A_WIDTH}} m), so this is a compact
+      block being attacked rather than a stretched, broken one.</p>
+    <p>The physical split is the clearest signature. Blue's three most advanced players
+      register the passage's fastest runs — <b>{{H_TOPSPEED}} m/s</b> at peak — and take
+      <b>{{H_SPRINTS}}</b> of the {{SPRINTS}} sprints, while their deepest four barely
+      move above walking pace. That is an attacking transition: the back line holds
+      position and circulates, the front line runs.</p>
+  </section>
+
+  <section>
+    <h2><span class="n">2</span>Average positions</h2>
+    <p class="lede">Mean position of each tracked player over the passage. Numbers are
+      synthetic and ordered 1 → 11 from each side's own goal outward.</p>
+    <figure>{{CHART_FORMATION}}
+      <figcaption><b>Left: Blue attacking left-to-right. Right: White defending.</b>
+        White's block sits deep and narrow around the 80–98 m band; Blue's shape is
+        stretched from 24 m to 97 m, the signature of a side committed forward with a
+        holding line behind.</figcaption>
+    </figure>
+    <div class="split">
+      <div class="card"><h4>Blue — shape</h4>
+        <div class="kv"><span>Mean width</span><b>{{H_WIDTH}} m</b></div>
+        <div class="kv"><span>Mean depth</span><b>{{H_DEPTH}} m</b></div>
+        <div class="kv"><span>Centroid from own goal</span><b>{{H_CENT}} m</b></div>
+        <div class="kv"><span>Attacking third time</span><b>{{H_ATT}}%</b></div>
+        <div class="kv"><span>Middle third</span><b>{{H_MID}}%</b></div>
+        <div class="kv"><span>Own third</span><b>{{H_DEF}}%</b></div>
+      </div>
+      <div class="card"><h4>White — shape</h4>
+        <div class="kv"><span>Mean width</span><b>{{A_WIDTH}} m</b></div>
+        <div class="kv"><span>Mean depth</span><b>{{A_DEPTH}} m</b></div>
+        <div class="kv"><span>Centroid from own goal</span><b>{{A_CENT}} m</b></div>
+        <div class="kv"><span>Attacking third time</span><b>{{A_ATT}}%</b></div>
+        <div class="kv"><span>Middle third</span><b>{{A_MID}}%</b></div>
+        <div class="kv"><span>Own third</span><b>{{A_DEF}}%</b></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="n">3</span>Occupancy</h2>
+    <p class="lede">Where each side actually spent the passage. These are real heat maps —
+      binned in pitch metres, not image pixels.</p>
+    <figure>{{CHART_HEATMAP}}
+      <figcaption>Binned at 4 m × 4 m. The asymmetry is the story: White's mass sits in
+        their defensive third while Blue's spreads forward through midfield into the
+        attacking third.</figcaption>
+    </figure>
+  </section>
+
+  <section>
+    <h2><span class="n">4</span>Ball and territory</h2>
+    <figure>{{CHART_BALL}}
+      <figcaption><b>Ball path, coloured by time.</b> From the centre spot at kickoff,
+        progressing right. Gaps are frames where the ball was not detected or was
+        airborne — a ground-plane homography misplaces an airborne ball, so those
+        positions are dropped rather than guessed.</figcaption>
+    </figure>
+    <figure>{{CHART_CENTROID}}
+      <figcaption><b>Team centroid over time.</b> Both lines advance together, White
+        retreating as Blue push — the classic block-being-pushed-back pattern. The
+        vertical separation between the lines is the space Blue are playing into.</figcaption>
+    </figure>
+  </section>
+
+  <section>
+    <h2><span class="n">5</span>Physical output</h2>
+    <p class="lede">Distances are over active play only. A 32-second passage with no
+      stoppages runs far hotter than a 90-minute average, so these rates are not
+      comparable to per-match figures.</p>
+    <figure>{{CHART_PHYSICAL}}
+      <figcaption>Each point is one synthetic player. The upper-right cluster — high
+        distance rate <i>and</i> high peak speed — is Blue's forward line.</figcaption>
+    </figure>
+    <div class="split">
+      <div class="card"><h4>Blue</h4>
+        <div class="kv"><span>Median rate</span><b>{{H_MPM}} m/min</b></div>
+        <div class="kv"><span>Top speed</span><b>{{H_TOPSPEED}} m/s</b></div>
+        <div class="kv"><span>Sprints</span><b>{{H_SPRINTS}}</b></div>
+      </div>
+      <div class="card"><h4>White</h4>
+        <div class="kv"><span>Median rate</span><b>{{A_MPM}} m/min</b></div>
+        <div class="kv"><span>Top speed</span><b>{{A_TOPSPEED}} m/s</b></div>
+        <div class="kv"><span>Sprints</span><b>{{A_SPRINTS}}</b></div>
+      </div>
+    </div>
+    <div class="tw">
+      <table>
+        <thead><tr><th>Player</th><th>Band</th><th class="num">Min on cam</th>
+          <th class="num">Dist (m)</th><th class="num">m/min</th><th class="num">Top (m/s)</th>
+          <th class="num">HSR (s)</th><th class="num">Sprints</th><th class="num">Avg pos (x, y)</th></tr></thead>
+        <tbody>{{PLAYER_ROWS}}</tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="n">6</span>How this was measured</h2>
+    <p class="lede">What is measured, what is modelled, and what is invented — stated so
+      the numbers above can be used at the right confidence.</p>
+
+    <h3>Positions are measured</h3>
+    <p>The camera pans continuously, so a single fixed homography is worthless — it
+      exceeds a 2 m error budget within about a second. Instead the pitch model is
+      registered to one reference frame by optimising camera pose against the detected
+      line markings, and every other frame is tied to that reference by a homography
+      estimated from SIFT correspondences. All 807 frames registered, none failed.
+      Residual position noise is <b>{{NOISE}} m</b>, which is small enough for zones,
+      thirds, shape and occupancy.</p>
+
+    <h3>Identities are synthetic</h3>
+    <div class="note warn">
+      <p class="t">Read this before quoting a player number</p>
+      <p><b>H01–H11 and A01–A11 are labels for tracks, not people.</b> Real shirt numbers
+        are unreadable at 768 × 432 — a human cannot read them from these frames at
+        2.4× magnification either, and jersey-number recognition is the acknowledged
+        weakest component of the state-of-the-art SoccerNet pipeline even at full
+        broadcast resolution. Numbers here are assigned by average position from each
+        side's own goal outward, so they carry positional meaning and nothing else. Bands
+        (DEEP / MID / HIGH) are positional, not detected roles — there is deliberately no
+        "GK", because both goalkeepers are off camera for most of this passage.</p>
+    </div>
+
+    <h3>Distance is the weakest number here</h3>
+    <div class="note stop">
+      <p class="t">Confidence: low on distance, good on speed</p>
+      <p>Summing frame-to-frame displacement turns measurement noise into distance. With
+        {{NOISE}} m of residual jitter at 25 fps, unfiltered summation fabricates over
+        1 000 m/min of pure noise — more than the real signal. A constant-velocity Kalman
+        filter with RTS smoothing brings peak speeds back into the physically possible
+        range (nothing above 11 m/s, max {{TOPSPEED}}), and <b>speeds and sprint counts
+        should be treated as sound</b>. Absolute distance totals should be treated as an
+        upper bound, and compared between players rather than read as true metres.</p>
+    </div>
+
+    <h3>The ceiling this cannot pass</h3>
+    <p>One camera sees <b>{{ONCAM}} players</b> on average, not 22. That is not a defect
+      of this pipeline — published work on broadcast footage reports 10–16 of 22 visible
+      in a typical frame, and StatsBomb measured an average of 14.35 of 20 outfield
+      players. Any metric that needs all 22 simultaneously — pitch control, off-ball
+      space occupation, true team centroid — cannot be computed honestly from this angle,
+      by anyone. Possession here is a nearest-player proxy gated at 3 m, not
+      event-detected possession, and {{POSS_FRAMES}} frames carried an attribution.</p>
+  </section>
+
+  <footer>
+    <p>Passage reconstructed from a single panning broadcast camera at 768 × 432, 25 fps.
+      Positions in pitch metres on a 105 × 68 m IFAB model. Player identities are
+      synthetic. Source footage is watermarked stock preview material and is not
+      reproduced here — every figure above is a derived measurement.</p>
+  </footer>
+</div>

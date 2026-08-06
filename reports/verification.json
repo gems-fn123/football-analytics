@@ -1,0 +1,171 @@
+{
+  "mapping": {
+    "clip0": {
+      "clip": "clip0",
+      "home_name": "Blue",
+      "away_name": "White",
+      "home_hex": "#2A55C4",
+      "away_hex": "#E6E6E6",
+      "n_crops": {
+        "away": 391,
+        "home": 307,
+        "referee": 34
+      },
+      "observed_chroma": {
+        "away": [
+          129.0,
+          128.0
+        ],
+        "home": [
+          123.0,
+          106.0
+        ],
+        "referee": [
+          115.0,
+          165.25
+        ]
+      },
+      "naive_absolute_distance_says_correct": false,
+      "axis_projection_t_home": 0.273,
+      "axis_projection_t_away": 0.006,
+      "axis_separation": 0.267,
+      "C-D3_mapping_correct": true
+    },
+    "clip1": {
+      "clip": "clip1",
+      "home_name": "Red",
+      "away_name": "Blue",
+      "home_hex": "#C62828",
+      "away_hex": "#1E64C8",
+      "n_crops": {
+        "away": 488,
+        "home": 470,
+        "referee": 13
+      },
+      "observed_chroma": {
+        "away": [
+          120.0,
+          113.25
+        ],
+        "home": [
+          153.0,
+          140.5
+        ],
+        "referee": [
+          116.0,
+          159.0
+        ]
+      },
+      "naive_absolute_distance_says_correct": true,
+      "axis_projection_t_home": 0.633,
+      "axis_projection_t_away": 0.276,
+      "axis_separation": 0.357,
+      "C-D3_mapping_correct": true
+    },
+    "clip2": {
+      "clip": "clip2",
+      "home_name": "Red",
+      "away_name": "Cyan",
+      "home_hex": "#C62F3C",
+      "away_hex": "#3FB6E6",
+      "n_crops": {
+        "away": 197,
+        "home": 180
+      },
+      "observed_chroma": {
+        "away": [
+          117.0,
+          114.0
+        ],
+        "home": [
+          153.0,
+          141.5
+        ]
+      },
+      "naive_absolute_distance_says_correct": true,
+      "axis_projection_t_home": 0.631,
+      "axis_projection_t_away": 0.176,
+      "axis_separation": 0.455,
+      "C-D3_mapping_correct": true
+    }
+  },
+  "tracks": {
+    "clip0": {
+      "clip": "clip0",
+      "n_tracks": 87,
+      "median_life_frames": 102.0,
+      "life_p10": 2.5999999999999996,
+      "life_p90": 340.80000000000007,
+      "tracks_under_1s": 22,
+      "tracks_under_1s_pct": 0.253,
+      "tracks_over_5s": 39,
+      "longest_life_frames": 582,
+      "clip_frames": 807,
+      "rows_in_tracks_over_2s_pct": 0.969
+    },
+    "clip1": {
+      "clip": "clip1",
+      "n_tracks": 179,
+      "median_life_frames": 46.0,
+      "life_p10": 1.0,
+      "life_p90": 268.40000000000003,
+      "tracks_under_1s": 66,
+      "tracks_under_1s_pct": 0.369,
+      "tracks_over_5s": 49,
+      "longest_life_frames": 606,
+      "clip_frames": 880,
+      "rows_in_tracks_over_2s_pct": 0.934
+    },
+    "clip2": {
+      "clip": "clip2",
+      "n_tracks": 66,
+      "median_life_frames": 50.5,
+      "life_p10": 1.0,
+      "life_p90": 319.5,
+      "tracks_under_1s": 27,
+      "tracks_under_1s_pct": 0.409,
+      "tracks_over_5s": 23,
+      "longest_life_frames": 364,
+      "clip_frames": 364,
+      "rows_in_tracks_over_2s_pct": 0.956
+    }
+  },
+  "calibration": {
+    "clip0": {
+      "median_err_m_overall": 10.75,
+      "first_breach_of_2m_s": 1.2,
+      "fraction_frames_over_2m": 0.925,
+      "err_m_at_1s": 0.59,
+      "err_m_at_5s": 14.15,
+      "err_m_at_10s": 19.94,
+      "err_m_final": 10.12,
+      "m_per_px_at_median_depth": 0.04819,
+      "box_h_px_median": 36.125,
+      "verdict": "FAIL"
+    },
+    "clip1": {
+      "median_err_m_overall": 11.37,
+      "first_breach_of_2m_s": 0.8,
+      "fraction_frames_over_2m": 0.954,
+      "err_m_at_1s": 3.26,
+      "err_m_at_5s": 24.14,
+      "err_m_at_10s": 4.28,
+      "err_m_final": 39.36,
+      "m_per_px_at_median_depth": 0.04516,
+      "box_h_px_median": 39.9375,
+      "verdict": "FAIL"
+    },
+    "clip2": {
+      "median_err_m_overall": 10.01,
+      "first_breach_of_2m_s": 0.8,
+      "fraction_frames_over_2m": 0.971,
+      "err_m_at_1s": 3.3,
+      "err_m_at_5s": 10.01,
+      "err_m_at_10s": 38.36,
+      "err_m_final": 12.7,
+      "m_per_px_at_median_depth": 0.05086,
+      "box_h_px_median": 33.375,
+      "verdict": "FAIL"
+    }
+  }
+}

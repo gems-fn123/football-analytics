@@ -1,0 +1,3 @@
+# Derived data: regenerate with project_to_pitch.py / build_analysis.py
+out/*.parquet
+__pycache__/

@@ -39,13 +39,22 @@ echo
 # ---------------------------------------------------------------------------
 # 2-4. Still manual.
 # ---------------------------------------------------------------------------
-echo "[2/4] Pitch keypoint model - broadcast and phone profiles only."
-echo "      Fixed-camera users skip this entirely:"
+echo "[2/4] Pitch keypoint model - broadcast and phone profiles."
+echo "      NBJW HRNetV2 keypoint weights, CC-BY-4.0 (attribution in NOTICE.md):"
+if [ ! -f "$WEIGHTS_DIR/SV_kp.pth" ]; then
+  curl -L -o "$WEIGHTS_DIR/SV_kp.pth" "https://zenodo.org/records/12626395/files/SV_kp?download=1"
+fi
+echo "      $WEIGHTS_DIR/SV_kp.pth ($(du -h "$WEIGHTS_DIR/SV_kp.pth" 2>/dev/null | cut -f1))"
+echo "      Fixed-camera users can skip this:"
 echo "        python scripts/calibrate_fixed_camera.py --video <file>"
-echo "      Check the source repo's licence before redistributing (several are GPL)."
 echo
-echo "[3/4] Re-ID weights - only for the botsort tracker, which is not wired up."
-echo "      configs/tracker/bytetrack.yaml is the supported path and needs no weights."
+echo "[3/4] Re-ID weights - for the tracker's optional appearance stitching"
+echo "      (configs/tracker/bytetrack.yaml, stitch.enabled). OSNet x0_25, MIT:"
+if [ ! -f "$WEIGHTS_DIR/osnet_x0_25.pt" ]; then
+  curl -L -o "$WEIGHTS_DIR/osnet_x0_25.pt" \
+    "https://drive.usercontent.google.com/download?id=1rb8UN5ZzPKRc_xvtHlyDh-cSz88YX9hs&export=download&confirm=t"
+fi
+echo "      $WEIGHTS_DIR/osnet_x0_25.pt ($(du -h "$WEIGHTS_DIR/osnet_x0_25.pt" 2>/dev/null | cut -f1))"
 echo
 echo "[4/4] Ball model - optional, TrackNet-style. stages.ball currently works from"
 echo "      the main detector's ball candidates and needs no extra weights; a"

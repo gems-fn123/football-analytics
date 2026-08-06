@@ -3,4 +3,15 @@ licence: MIT
 track_activation_threshold: 0.25
 lost_track_buffer: 60
 minimum_matching_threshold: 0.85
-frame_rate: 25
+frame_rate: 25               # fallback only; the stage derives fps/stride from the video
+
+# Appearance stitching of fragmented tracks (OSNet x0_25, MIT, vendored).
+# Off by default: a false merge fuses two players, which corrupts more than
+# fragmentation does. Enable per run once eyeballed on the footage at hand.
+stitch:
+  enabled: false
+  weights: models/weights/osnet_x0_25.pt
+  sim_threshold: 0.65
+  margin: 0.08
+  max_gap_frames: 250        # ~10 s at 25 fps
+  max_crops: 6

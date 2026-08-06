@@ -106,6 +106,11 @@ class Tracker(Stage):
 
         df = validate(detections.assign(track_id=track_ids), TRACKS_PX, self.name)
 
+        stitch_cfg = self.cfg.get("stitch") or {}
+        n_stitched = 0
+        if stitch_cfg.get("enabled") and video is not None:
+            df, n_stitched = self._stitch(df, video, stitch_cfg)
+
         tracked_rows = df[df["track_id"] >= 0]
         n_tracks = int(tracked_rows["track_id"].nunique())
         return StageResult(
@@ -113,6 +118,7 @@ class Tracker(Stage):
             df,
             stats={
                 "n_tracks": n_tracks,
+                "n_stitched": n_stitched,
                 "tracked_fraction": (
                     round(len(tracked_rows) / int(trackable.sum()), 3) if trackable.any() else 0.0
                 ),
@@ -120,3 +126,61 @@ class Tracker(Stage):
                 "id_switches": None,  # needs ground truth, see docs/architecture.md
             },
         )
+
+    def _stitch(self, df: pd.DataFrame, video: Any, cfg: dict) -> tuple[pd.DataFrame, int]:
+        """Merge fragmented tracks by OSNet appearance. Off by default; see
+        footy.reid.stitch for why the thresholds are conservative."""
+        from pathlib import Path
+
+        from footy.reid.embedder import Embedder
+        from footy.reid.stitch import stitch_tracks
+
+        weights = cfg.get("weights", "models/weights/osnet_x0_25.pt")
+        if not Path(weights).exists():
+            self.log.warning("stitch enabled but reid weights missing at %s; skipping", weights)
+            return df, 0
+
+        tracked = df[(df["track_id"] >= 0) & (df["cls"] != "ball")]
+        max_crops = int(cfg.get("max_crops", 6))
+        # Pick which (frame, box) samples to crop, spread along each track.
+        wanted: dict[int, list] = {}
+        for _tid, group in tracked.groupby("track_id"):
+            step = max(1, len(group) // max_crops)
+            for row in group.iloc[::step].itertuples():
+                wanted.setdefault(int(row.frame), []).append(row)
+
+        crops: dict[int, list[np.ndarray]] = {}
+        last_needed = max(wanted) if wanted else -1
+        for frame_idx, image in video:
+            for row in wanted.get(frame_idx, ()):
+                x1, y1 = max(int(row.x1), 0), max(int(row.y1), 0)
+                x2, y2 = min(int(row.x2), image.shape[1]), min(int(row.y2), image.shape[0])
+                if x2 - x1 >= 8 and y2 - y1 >= 16:
+                    crops.setdefault(int(row.track_id), []).append(image[y1:y2, x1:x2])
+            if frame_idx >= last_needed:
+                break
+
+        embedder = Embedder(weights)
+        info = {}
+        for tid, group in tracked.groupby("track_id"):
+            if not crops.get(int(tid)):
+                continue
+            emb = np.median(embedder.embed(crops[int(tid)]), axis=0)
+            emb = emb / max(float(np.linalg.norm(emb)), 1e-9)
+            info[int(tid)] = {
+                "start": int(group["frame"].min()),
+                "end": int(group["frame"].max()),
+                "embedding": emb,
+            }
+
+        mapping = stitch_tracks(
+            info,
+            sim_threshold=float(cfg.get("sim_threshold", 0.65)),
+            margin=float(cfg.get("margin", 0.08)),
+            max_gap_frames=int(cfg.get("max_gap_frames", 250)),
+        )
+        n_merged = sum(1 for t, r in mapping.items() if t != r)
+        if n_merged:
+            df = df.assign(track_id=df["track_id"].map(lambda t: mapping.get(int(t), t)))
+            self.log.info("stitched %d track fragments", n_merged)
+        return df, n_merged

@@ -144,16 +144,25 @@ class BallTracker(Stage):
         # Metres via the ground-plane homography, when calibrated. An airborne ball
         # projects long; treat these as approximate even on a calibrated camera.
         H = None
+        per_frame: dict[int, np.ndarray] = {}
         if "calibrate" in ctx:
             H = ctx["calibrate"].artifacts.get("homography")
-        if H is not None and len(df):
+            per_frame = ctx["calibrate"].artifacts.get("homographies_px_to_m") or {}
+        df["x_m"] = np.nan
+        df["y_m"] = np.nan
+        if len(df) and (H is not None or per_frame):
             from footy.stages.calibrate import Calibrator
 
-            xy = Calibrator.apply(H, df[["x_px", "y_px"]].to_numpy(dtype=np.float64))
-            df["x_m"], df["y_m"] = xy[:, 0], xy[:, 1]
-        else:
-            df["x_m"] = np.nan
-            df["y_m"] = np.nan
+            if per_frame:
+                solved = np.array(sorted(per_frame))
+                for i, row in enumerate(df.itertuples()):
+                    nearest = int(solved[np.argmin(np.abs(solved - int(row.frame)))])
+                    xy = Calibrator.apply(per_frame[nearest], np.array([[row.x_px, row.y_px]]))
+                    df.iloc[i, df.columns.get_loc("x_m")] = xy[0, 0]
+                    df.iloc[i, df.columns.get_loc("y_m")] = xy[0, 1]
+            else:
+                xy = Calibrator.apply(H, df[["x_px", "y_px"]].to_numpy(dtype=np.float64))
+                df["x_m"], df["y_m"] = xy[:, 0], xy[:, 1]
 
         df = validate(df[list(BALL)], BALL, self.name)
         coverage = len(df) / len(grid) if grid else 0.0

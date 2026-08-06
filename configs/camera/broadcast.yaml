@@ -2,8 +2,13 @@ profile: broadcast
 description: TV feed, moving camera, cuts and replays
 homography:
   mode: per_frame
-  refresh_every_n_frames: 1
-  keypoint_model: models/weights/pitch_keypoints.pt
+  # HRNet-W48 at 540x960 costs seconds per frame on CPU; 5 keeps a 25 fps clip
+  # tractable with at most 2-3 frames of pan drift. Set 1 on a GPU box.
+  refresh_every_n_frames: 5
+  keypoint_model: models/weights/SV_kp.pth          # CC-BY-4.0, see NOTICE.md
+  keypoint_grid: analysis/calib/keypoint_grid.json  # scripts/derive_keypoint_grid.py
+  min_score: 1.0    # heatmap margin over background; below this a peak is noise
+  min_points: 5     # RANSAC needs 4; 5+ leaves one for consensus
 expectations:
   players_visible: 15      # typical, not guaranteed
   shot_boundary_detection: true

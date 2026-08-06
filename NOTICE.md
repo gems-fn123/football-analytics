@@ -28,6 +28,15 @@ Two packages are licence-clean yet excluded on dependency grounds, not legal one
 Both become available the day socceraction supports numpy 2.x. Until then, adopting either
 means giving up SPADL, xT, and VAEP.
 
+## Weights and datasets in use
+
+| Artefact | Licence | Obligation |
+|---|---|---|
+| NBJW calibration weights (`SV_kp`, `SV_lines`, Zenodo record 12626395) | CC-BY-4.0 | Attribution: Gutierrez-Perez & Agudo, "No Bells, Just Whistles: Sports Field Registration by Leveraging Geometric Properties", CVPRW 2024. Weights only - the reference code is GPL and is not used; our inference is clean-room (see src/footy/calib/). |
+| OSNet (`src/footy/reid/osnet.py`, vendored; `osnet_x0_25` weights) | MIT | Copyright (c) 2018 Kaiyang Zhou (torchreid). Notice retained in the vendored file. |
+| Roboflow football datasets (players/ball/field, workspace roboflow-jvuqo) | CC BY 4.0 | Attribution when shipping models trained on them. Train-time only. |
+| SoccerNet datasets (calibration-2023, jersey-2023, reid-2023) | Research use | Train/eval only; review terms before any commercial deployment of derived weights. |
+
 ## Copyleft - review before commercial use
 
 | Component | Licence | Consequence |

@@ -119,3 +119,39 @@ def test_solve_homography_error_ignores_ransac_rejected_outliers():
     np.testing.assert_allclose(
         Calibrator.apply(H, probe), Calibrator.apply(H_true, probe), atol=0.1
     )
+
+
+def test_per_frame_mode_projects_with_injected_solver(tmp_path, monkeypatch):
+    """The per-frame plumbing: cadence sampling, nearest-solve gap fill, and the
+    px->m direction, all without touching the 265 MB model.
+
+    _solve_frame returns pitch->image (what homography_from_keypoints solves);
+    the stage inverts it, so the injected solver must supply inv(SCALE_H)."""
+    H_pitch_to_img = np.linalg.inv(np.array(SCALE_H))
+
+    stage = Calibrator({"homography": {"mode": "per_frame", "refresh_every_n_frames": 2}})
+    stage.setup()
+    monkeypatch.setattr(stage, "_load_keypoint_model", lambda: True)
+    monkeypatch.setattr(stage, "_solve_frame", lambda image: H_pitch_to_img.copy())
+
+    result = stage.run(make_identity_ctx())
+    df = result.table
+    assert result.stats["calibrated"] is True
+    assert result.stats["frames_solved"] >= 2
+    # Box 0 bottom-centre (115, 160) -> metres via the inverse of SCALE_H.
+    row = df[(df["track_id"] == 0) & (df["frame"] == 0)].iloc[0]
+    assert row["x_m"] == pytest.approx(115 * 105 / 640, abs=1e-6)
+    assert row["y_m"] == pytest.approx(68 - 160 * 68 / 360, abs=1e-6)
+    # Frames between cadence samples get the nearest solve, not null.
+    assert df["x_m"].notna().all()
+    assert result.artifacts["homographies_px_to_m"]
+
+
+def test_per_frame_unsolvable_frames_stay_null(monkeypatch):
+    stage = Calibrator({"homography": {"mode": "per_frame", "refresh_every_n_frames": 1}})
+    stage.setup()
+    monkeypatch.setattr(stage, "_load_keypoint_model", lambda: True)
+    monkeypatch.setattr(stage, "_solve_frame", lambda image: None)
+    result = stage.run(make_identity_ctx())
+    assert result.table["x_m"].isna().all()
+    assert result.stats["calibrated"] is False

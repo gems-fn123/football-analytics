@@ -38,11 +38,18 @@ class PoliteFetcher:
         raw_root: str | Path = "data/raw/corpus",
         min_interval_s: float = 2.0,
         timeout_s: float = 30.0,
+        respect_robots: bool = True,
     ) -> None:
         self.source = source
         self.raw_root = Path(raw_root)
         self.min_interval_s = min_interval_s
         self.timeout_s = timeout_s
+        # robots.txt governs crawling of public pages. A key-authenticated API
+        # accessed under its own terms of service is not crawling - FootyStats,
+        # for instance, serves "Disallow: /" on the very API it sells access
+        # to. Ingestors for licensed APIs set respect_robots=False; scrapers of
+        # public pages NEVER do.
+        self.respect_robots = respect_robots
         self.log = get_logger(f"footy.corpus.{source}")
         self._robots: dict[str, urllib.robotparser.RobotFileParser] = {}
         self._last_hit: dict[str, float] = {}
@@ -88,7 +95,7 @@ class PoliteFetcher:
         if snap.exists():
             return snap.read_text(encoding="utf-8")
 
-        if not self._robots_for(url).can_fetch(USER_AGENT, url):
+        if self.respect_robots and not self._robots_for(url).can_fetch(USER_AGENT, url):
             raise RobotsDisallowed(f"{url} disallowed for {USER_AGENT!r}")
 
         import requests
@@ -103,5 +110,6 @@ class PoliteFetcher:
 
         snap.parent.mkdir(parents=True, exist_ok=True)
         snap.write_text(resp.text, encoding="utf-8")
-        self.log.info("fetched %s -> %s (%d bytes)", url, snap.name, len(resp.text))
+        logged = re.sub(r"(key=)[^&]+", r"\1***", url)  # never log credentials
+        self.log.info("fetched %s -> %s (%d bytes)", logged, snap.name, len(resp.text))
         return resp.text

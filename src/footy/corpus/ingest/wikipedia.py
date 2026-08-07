@@ -78,18 +78,47 @@ def strip_markers(name: str) -> str:
         out = new
 
 
-def _tables(html: str) -> list[pd.DataFrame]:
-    """bs4/html5lib flavour: live Wikipedia HTML carries malformed attributes
-    (e.g. rowspan='2style=...') that abort pandas' default lxml path mid-page."""
-    try:
-        return pd.read_html(StringIO(html), flavor="bs4")
-    except ValueError:  # "no tables found"
-        return []
+def _sections(html: str) -> list[tuple[str, pd.DataFrame]]:
+    """(section label, table) for every wikitable, in document order.
+
+    Liga 2 runs in stages and regional groups (First round West/East, Second
+    round Group A/B); the group is in the h2/h3 headings ABOVE each table,
+    which pd.read_html discards. So: walk the DOM tracking the heading path,
+    then hand each table to pandas individually. html5lib parser throughout -
+    live Wikipedia HTML carries malformed attributes (rowspan='2style=...')
+    that abort lxml mid-page.
+    """
+    from bs4 import BeautifulSoup
+
+    soup = BeautifulSoup(html, "html5lib")
+    path = {"h2": "", "h3": ""}
+    out: list[tuple[str, pd.DataFrame]] = []
+    for el in soup.find_all(["h2", "h3", "table"]):
+        if el.name in ("h2", "h3"):
+            txt = re.sub(r"\[\s*edit\s*\]\s*$", "", el.get_text(" ", strip=True)).strip()
+            path[el.name] = txt
+            if el.name == "h2":
+                path["h3"] = ""
+        else:
+            classes = el.get("class") or []
+            if "wikitable" not in classes:
+                continue
+            label = " / ".join(x for x in (path["h2"], path["h3"]) if x)
+            try:
+                dfs = pd.read_html(StringIO(str(el)), flavor="bs4")
+            except ValueError:
+                continue
+            out.extend((label, df) for df in dfs)
+    return out
 
 
 def parse_league_table(html: str) -> pd.DataFrame | None:
-    """The season's final table -> one row per club with aggregate columns."""
-    for t in _tables(html):
+    """EVERY standings-shaped table on the page -> club rows with a group_raw
+    column carrying the section label ('First round / West region', ...).
+    A club appearing in several stages yields one row per stage - different
+    facts, not duplicates."""
+    frames = []
+    for label, t in _sections(html):
         cols = [str(c) for c in t.columns]
         if not any(c.startswith("Pos") for c in cols):
             continue
@@ -108,20 +137,25 @@ def parse_league_table(html: str) -> pd.DataFrame | None:
                 "goals_for": pd.to_numeric(t.get("GF"), errors="coerce"),
                 "goals_against": pd.to_numeric(t.get("GA"), errors="coerce"),
                 "points": pd.to_numeric(t.get("Pts"), errors="coerce"),
+                "group_raw": label,
             }
         ).dropna(subset=["position", "played"])
         if len(out):
-            return out.reset_index(drop=True)
-    return None
+            frames.append(out)
+    if not frames:
+        return None
+    return pd.concat(frames, ignore_index=True)
 
 
 def parse_results_grid(html: str) -> pd.DataFrame | None:
-    """The Home x Away score matrix -> one row per played fixture.
+    """Every Home x Away score matrix on the page -> one row per played
+    fixture, tagged with the section label in group_raw.
 
     Column headers are club short forms; row labels are fuller names. Both are
     kept verbatim for entity resolution. Unplayed/void cells are skipped.
     """
-    for t in _tables(html):
+    frames = []
+    for label, t in _sections(html):
         first = str(t.columns[0])
         if "Home" not in first or "Away" not in first:
             continue
@@ -138,11 +172,14 @@ def parse_results_grid(html: str) -> pd.DataFrame | None:
                             "away_raw": str(abbr),
                             "home_goals": int(m.group(1)),
                             "away_goals": int(m.group(2)),
+                            "group_raw": label,
                         }
                     )
         if rows:
-            return pd.DataFrame(rows)
-    return None
+            frames.append(pd.DataFrame(rows))
+    if not frames:
+        return None
+    return pd.concat(frames, ignore_index=True)
 
 
 def ingest(

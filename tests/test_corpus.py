@@ -61,6 +61,31 @@ def test_parse_results_grid_reads_scores_and_skips_unplayed():
     assert (row["home_goals"], row["away_goals"]) == (2, 1)
 
 
+GROUPED_HTML = """
+<h2>First round<span>[edit]</span></h2>
+<h3>West region</h3>
+<table class="wikitable">
+<tr><th>Pos</th><th>Team</th><th>Pld</th><th>Pts</th></tr>
+<tr><td>1</td><td>PSMS</td><td>10</td><td>22</td></tr>
+</table>
+<h3>East region</h3>
+<table class="wikitable">
+<tr><th>Pos</th><th>Team</th><th>Pld</th><th>Pts</th></tr>
+<tr><td>1</td><td>Kalteng Putra</td><td>10</td><td>20</td></tr>
+</table>
+<h2>Unrelated</h2>
+<table class="wikitable"><tr><th>Name</th><th>Kit</th></tr><tr><td>x</td><td>y</td></tr></table>
+"""
+
+
+def test_group_labels_come_from_heading_path():
+    df = parse_league_table(GROUPED_HTML)
+    assert len(df) == 2  # the kit table is not standings-shaped
+    by_group = dict(zip(df["group_raw"], df["club_name"], strict=True))
+    assert by_group["First round / West region"] == "PSMS"
+    assert by_group["First round / East region"] == "Kalteng Putra"
+
+
 def test_store_roundtrip_and_partition_filters(tmp_path):
     store = CorpusStore(tmp_path)
     df = make_stamped(pd.DataFrame({"club_raw": ["Persib"], "points": [66]}))

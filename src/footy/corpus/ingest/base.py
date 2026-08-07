@@ -107,6 +107,11 @@ class PoliteFetcher:
         resp = requests.get(url, headers={"User-Agent": USER_AGENT}, timeout=self.timeout_s)
         self._last_hit[host] = time.monotonic()
         resp.raise_for_status()
+        # Without a charset in the Content-Type header requests decodes as
+        # latin-1 (RFC 2616 default), mojibake-ing names ("Divisi├│n") that
+        # entity resolution depends on. Trust the body's own detection then.
+        if "charset" not in resp.headers.get("Content-Type", "").lower():
+            resp.encoding = resp.apparent_encoding
 
         snap.parent.mkdir(parents=True, exist_ok=True)
         snap.write_text(resp.text, encoding="utf-8")

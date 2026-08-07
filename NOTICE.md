@@ -33,6 +33,7 @@ means giving up SPADL, xT, and VAEP.
 | Corpus source | Licence | Obligation |
 |---|---|---|
 | Wikipedia season pages (Liga 1/Liga 2 tables and results, 2017-) | CC-BY-SA-4.0 | Attribution; every record carries source_url + retrieved_at. Facts extracted, not article text. |
+| footystats.org public pages (league tables, squads, player career stats) | Proprietary site; ToS not commercially cleared (`tos-risk-accepted`) | Facts only, scraped politely (robots-clean paths, honest UA, 2 s interval). Quarantine with `CorpusStore.drop_source("footystats_web")` if terms are ever enforced against reuse; do not redistribute raw snapshots. |
 
 
 | Artefact | Licence | Obligation |

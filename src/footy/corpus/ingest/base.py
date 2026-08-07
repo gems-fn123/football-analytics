@@ -39,6 +39,7 @@ class PoliteFetcher:
         min_interval_s: float = 2.0,
         timeout_s: float = 30.0,
         respect_robots: bool = True,
+        max_retries_429: int = 4,
     ) -> None:
         self.source = source
         self.raw_root = Path(raw_root)
@@ -50,6 +51,7 @@ class PoliteFetcher:
         # to. Ingestors for licensed APIs set respect_robots=False; scrapers of
         # public pages NEVER do.
         self.respect_robots = respect_robots
+        self.max_retries_429 = max_retries_429
         self.log = get_logger(f"footy.corpus.{source}")
         self._robots: dict[str, urllib.robotparser.RobotFileParser] = {}
         self._last_hit: dict[str, float] = {}
@@ -101,11 +103,21 @@ class PoliteFetcher:
         import requests
 
         host = urlparse(url).netloc
-        wait = self.min_interval_s - (time.monotonic() - self._last_hit.get(host, 0.0))
-        if wait > 0:
-            time.sleep(wait)
-        resp = requests.get(url, headers={"User-Agent": USER_AGENT}, timeout=self.timeout_s)
-        self._last_hit[host] = time.monotonic()
+        # 429 means "slower", not "no": honour Retry-After when given, back off
+        # exponentially when not, and give up only after several rounds. Any
+        # other error status still raises immediately.
+        for attempt in range(self.max_retries_429 + 1):
+            wait = self.min_interval_s - (time.monotonic() - self._last_hit.get(host, 0.0))
+            if wait > 0:
+                time.sleep(wait)
+            resp = requests.get(url, headers={"User-Agent": USER_AGENT}, timeout=self.timeout_s)
+            self._last_hit[host] = time.monotonic()
+            if resp.status_code != 429 or attempt == self.max_retries_429:
+                break
+            retry_after = resp.headers.get("Retry-After", "")
+            pause = float(retry_after) if retry_after.isdigit() else 20.0 * 2**attempt
+            self.log.warning("429 on %s; backing off %.0fs (retry %d)", host, pause, attempt + 1)
+            time.sleep(pause)
         resp.raise_for_status()
         # Without a charset in the Content-Type header requests decodes as
         # latin-1 (RFC 2616 default), mojibake-ing names ("Divisi├│n") that

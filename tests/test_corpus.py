@@ -122,3 +122,33 @@ def test_provenance_columns_complete():
     df = make_stamped(pd.DataFrame({"v": [1]}))
     assert set(PROVENANCE) <= set(df.columns)
     assert df.iloc[0]["licence_tag"] == "CC0"
+
+
+def test_fetcher_backs_off_on_429(tmp_path, monkeypatch):
+    """429 responses are retried with backoff; success on a later try wins."""
+    import requests as requests_mod
+
+    from footy.corpus.ingest import base as base_mod
+
+    calls = {"n": 0}
+
+    class Resp:
+        def __init__(self, status):
+            self.status_code = status
+            self.headers = {"Retry-After": "0"} if status == 429 else {"Content-Type": "text/html; charset=utf-8"}
+            self.text = "payload"
+
+        def raise_for_status(self):
+            if self.status_code >= 400:
+                raise requests_mod.HTTPError(f"{self.status_code}")
+
+    def fake_get(url, headers=None, timeout=None):
+        calls["n"] += 1
+        return Resp(429 if calls["n"] < 3 else 200)
+
+    monkeypatch.setattr(requests_mod, "get", fake_get)
+    fetcher = base_mod.PoliteFetcher(
+        "testsrc", raw_root=tmp_path, min_interval_s=0.0, respect_robots=False
+    )
+    assert fetcher.fetch("https://example.org/page", key="page") == "payload"
+    assert calls["n"] == 3  # two 429s absorbed, third answered

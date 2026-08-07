@@ -276,7 +276,8 @@ class FootyStatsWeb:
         self, store: CorpusStore | None = None, fetcher: PoliteFetcher | None = None
     ) -> None:
         self.store = store or CorpusStore()
-        self.fetcher = fetcher or PoliteFetcher(SOURCE, min_interval_s=2.0)
+        # 3 s measured: at 2 s footystats starts burst-429ing after ~400 pages
+        self.fetcher = fetcher or PoliteFetcher(SOURCE, min_interval_s=3.0)
 
     def _player_frame(self, url: str, html: str, position: str | None, club_raw: str) -> pd.DataFrame:
         """All of one player's season rows (career + current), stamped with

@@ -58,7 +58,9 @@ SEASON_PAGES: dict[str, list[tuple[str, str]]] = {
 }
 
 _SCORE = re.compile(r"^\s*(\d+)\s*[–—-]\s*(\d+)")
-_MARKERS = re.compile(r"\s*(\((?:C|R|Q|O|A|P|X)\)|\[[a-z0-9]+\])\s*$", re.IGNORECASE)
+_MARKERS = re.compile(
+    r"\s*(\((?:[CRQOAPX](?:\s*,\s*[CRQOAPX])*)\)|\[[a-z0-9]+\])\s*$", re.IGNORECASE
+)
 
 
 def page_url(title: str) -> str:

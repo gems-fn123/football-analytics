@@ -94,7 +94,10 @@ def _float(text: str | None) -> float | None:
 
 
 def _soup(html: str) -> BeautifulSoup:
-    return BeautifulSoup(html, "html5lib")
+    # lxml, not html5lib: footystats markup is clean (verified identical
+    # parser output on live pages), and a full crawl re-parses ~1000 snapshot
+    # pages - the 3x parser speedup is minutes of wall clock.
+    return BeautifulSoup(html, "lxml")
 
 
 def league_season(html: str) -> str | None:
@@ -321,8 +324,15 @@ class FootyStatsWeb:
         max_players_per_club: int | None = None,
     ) -> pd.DataFrame:
         """Crawl league(s); returns a summary frame. Caps are for prototyping -
-        a capped run is a sample, and the summary says so."""
+        a capped run is a sample, and the summary says so.
+
+        Player rows are written once, after every league is crawled: a liga2
+        player's past Liga 1 seasons belong in the same partition as the
+        liga1 crawl's rows, and store.write REPLACES partitions - writing
+        per league would let the later league clobber the earlier one's.
+        """
         summary = []
+        all_player_frames: list[pd.DataFrame] = []
         for comp in competitions or list(LEAGUE_PAGES):
             league_url = LEAGUE_PAGES[comp]
             html = self.fetcher.fetch(league_url, key=f"{comp}_league")
@@ -372,22 +382,7 @@ class FootyStatsWeb:
                         player_frames.append(frame)
                     n_players += 1
 
-            n_rows = 0
-            if player_frames:
-                players = pd.concat(player_frames, ignore_index=True)
-                # A player's career can include the OTHER league we track;
-                # rows partition by the competition they belong to, not the
-                # league page that led us to the player.
-                for (row_comp, row_season), group in players.groupby(["competition", "season"]):
-                    self.store.write(
-                        "player_seasons",
-                        group.reset_index(drop=True),
-                        source=SOURCE,
-                        competition=row_comp,
-                        season=row_season,
-                    )
-                    n_rows += len(group)
-
+            all_player_frames.extend(player_frames)
             summary.append(
                 {
                     "competition": comp,
@@ -395,7 +390,25 @@ class FootyStatsWeb:
                     "status": "ok" + (" (capped sample)" if max_clubs or max_players_per_club else ""),
                     "clubs": len(clubs),
                     "players_fetched": n_players,
-                    "player_season_rows": n_rows,
+                    "player_season_rows": int(sum(len(f) for f in player_frames)),
                 }
             )
+
+        if all_player_frames:
+            players = pd.concat(all_player_frames, ignore_index=True)
+            # A player listed in two squads (mid-window mover) arrives twice;
+            # identical stat lines are one fact. Genuine two-spell seasons
+            # (loans) differ in appearances/minutes and both survive.
+            players = players.drop_duplicates(
+                subset=["player_url", "competition", "season", "appearances", "minutes", "goals"],
+                keep="first",
+            )
+            for (row_comp, row_season), group in players.groupby(["competition", "season"]):
+                self.store.write(
+                    "player_seasons",
+                    group.reset_index(drop=True),
+                    source=SOURCE,
+                    competition=row_comp,
+                    season=row_season,
+                )
         return pd.DataFrame(summary)

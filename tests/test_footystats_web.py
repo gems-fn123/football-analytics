@@ -199,3 +199,62 @@ def test_ingest_feeds_percentile_engine(tmp_path):
     players = store.read("player_seasons", source="footystats_web")
     # population of 1 must abstain - engine and scraper agree on column names
     assert percentile(players, "goals_per90", value=0.5, competition="liga1") is None
+
+
+LEAGUE2_HTML = LEAGUE_HTML.replace("Liga 1", "Liga 2").replace(
+    "borneo-fc-1536", "psms-medan-9001"
+).replace("data-team-id='1536'", "data-team-id='9001'").replace("Borneo FC", "PSMS Medan")
+
+SQUAD2_HTML = SQUAD_HTML.replace(
+    "/players/spain/koldo-obieta-alberdi", "/players/indonesia/liga2-player"
+).replace("Koldo Obieta Alberdi", "Liga2 Player")
+
+
+class TwoLeagueFetcher:
+    """liga1 and liga2 crawls whose players share career seasons."""
+
+    def fetch(self, url, key):
+        if "liga-2" in url:
+            return LEAGUE2_HTML
+        if "/clubs/psms" in url or "/clubs/persib" in url:
+            return SQUAD2_HTML
+        if "/clubs/" in url:
+            return SQUAD_HTML
+        if "/players/" in url:
+            return PLAYER_HTML  # every player: liga1 2024-25 career row
+        return LEAGUE_HTML
+
+
+def test_second_league_does_not_clobber_first(tmp_path):
+    """liga2 players' past Liga 1 rows must MERGE into liga1 partitions.
+
+    Regression: writing per league let the liga2 pass replace liga1
+    partitions with only its own career-spillover rows (observed live:
+    a 516-row partition shrank to 32)."""
+    store = CorpusStore(tmp_path)
+    web = FootyStatsWeb(store=store, fetcher=TwoLeagueFetcher())
+    web.ingest(competitions=["liga1", "liga2"], max_clubs=1, max_players_per_club=1)
+
+    past = store.read("player_seasons", source="footystats_web", season="2024-25")
+    # one liga1-crawled player + one liga2-crawled player, both present
+    assert len(past) == 2
+    assert set(past["player_url"]) == {
+        "https://footystats.org/players/spain/koldo-obieta-alberdi",
+        "https://footystats.org/players/indonesia/liga2-player",
+    }
+
+
+def test_same_player_in_two_squads_deduped(tmp_path):
+    """A mover listed by two clubs contributes each identical stat line once."""
+
+    class SameSquadFetcher(TwoLeagueFetcher):
+        def fetch(self, url, key):
+            if "/clubs/" in url:
+                return SQUAD_HTML  # both leagues' clubs list the same player
+            return super().fetch(url, key)
+
+    store = CorpusStore(tmp_path)
+    web = FootyStatsWeb(store=store, fetcher=SameSquadFetcher())
+    web.ingest(competitions=["liga1", "liga2"], max_clubs=1, max_players_per_club=1)
+    past = store.read("player_seasons", source="footystats_web", season="2024-25")
+    assert len(past) == 1

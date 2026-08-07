@@ -1,0 +1,116 @@
+{
+ "stem_position": "last",
+ "grid": {
+  "1": [
+   52.578,
+   71.873
+  ],
+  "34": [
+   52.565,
+   24.881
+  ],
+  "50": [
+   52.638,
+   34.713
+  ]
+ },
+ "report": [
+  {
+   "channel": 1,
+   "x": 52.578,
+   "y": 71.873,
+   "mad_m": 0.315,
+   "n": 10,
+   "median_score": 0.949,
+   "already_known": false
+  },
+  {
+   "channel": 4,
+   "status": "insufficient",
+   "n": 7,
+   "already_known": true
+  },
+  {
+   "channel": 30,
+   "status": "insufficient",
+   "n": 1,
+   "already_known": true
+  },
+  {
+   "channel": 31,
+   "x": 52.604,
+   "y": 42.839,
+   "mad_m": 2.299,
+   "n": 10,
+   "median_score": 0.55,
+   "already_known": false
+  },
+  {
+   "channel": 34,
+   "x": 52.565,
+   "y": 24.881,
+   "mad_m": 0.07,
+   "n": 15,
+   "median_score": 0.734,
+   "already_known": false
+  },
+  {
+   "channel": 37,
+   "status": "insufficient",
+   "n": 4,
+   "already_known": false
+  },
+  {
+   "channel": 38,
+   "status": "insufficient",
+   "n": 3,
+   "already_known": false
+  },
+  {
+   "channel": 47,
+   "status": "insufficient",
+   "n": 3,
+   "already_known": false
+  },
+  {
+   "channel": 48,
+   "status": "insufficient",
+   "n": 4,
+   "already_known": false
+  },
+  {
+   "channel": 49,
+   "status": "insufficient",
+   "n": 7,
+   "already_known": false
+  },
+  {
+   "channel": 50,
+   "x": 52.638,
+   "y": 34.713,
+   "mad_m": 0.153,
+   "n": 13,
+   "median_score": 0.609,
+   "already_known": false
+  },
+  {
+   "channel": 51,
+   "status": "insufficient",
+   "n": 7,
+   "already_known": false
+  },
+  {
+   "channel": 52,
+   "status": "insufficient",
+   "n": 6,
+   "already_known": false
+  },
+  {
+   "channel": 53,
+   "status": "insufficient",
+   "n": 3,
+   "already_known": false
+  }
+ ],
+ "provenance": "self-bootstrapped from clip0 alone: frame 0 uses the hand-verified reference (1.9 px), other frames via SIFT+RANSAC propagation from frame 0 (reports/calibration_feasibility.py's method), gated at >=150 inlier matches. NOT derived from SoccerNet calibration-2023 ground truth."
+}

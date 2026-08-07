@@ -1,0 +1,59 @@
+{
+  "clip": "clip0",
+  "n_frames": 807,
+  "n_solved": 807,
+  "coverage": 1.0,
+  "n_keyframes": 10,
+  "watermark_px_masked": 66885,
+  "cumulative_motion_px": 1934.3,
+  "drift_checks": [
+    {
+      "frame": 25,
+      "inliers": 434,
+      "err_m": 0.0
+    },
+    {
+      "frame": 50,
+      "inliers": 240,
+      "err_m": 0.0
+    },
+    {
+      "frame": 75,
+      "inliers": 170,
+      "err_m": 0.0
+    },
+    {
+      "frame": 100,
+      "inliers": 147,
+      "err_m": 0.0
+    },
+    {
+      "frame": 300,
+      "inliers": 110,
+      "err_m": 1.384
+    }
+  ],
+  "drift_median_m": 0.0,
+  "drift_max_m": 1.384,
+  "n_drift_checks": 5,
+  "fraction_on_pitch": 0.7083,
+  "criteria": {
+    "C-K1 coverage >= 95%": {
+      "pass": true,
+      "value": 1.0
+    },
+    "C-K2 drift < 2.0 m": {
+      "pass": true,
+      "value": 0.0,
+      "n_checks": 5
+    },
+    "C-K3 cumulative motion >= 100 px": {
+      "pass": true,
+      "value": 1934.3
+    },
+    "C-K4 on-pitch >= 90%": {
+      "pass": false,
+      "value": 0.7083
+    }
+  }
+}

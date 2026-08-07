@@ -1,0 +1,37 @@
+{
+  "n_player_frames": 7946,
+  "spike_frac": 0.0788,
+  "unc_median_all_m": 0.6194,
+  "unc_p99_all_m": 1.7175,
+  "unc_median_at_spikes_m": 0.782,
+  "unc_median_at_calm_m": 0.5976,
+  "uncertainty_ratio_spike_vs_calm": 1.309,
+  "residual_spike_rate_when_confident": 0.0123,
+  "gate_sweep": [
+    {
+      "bound_m": 2.0,
+      "kept_frac": 1.0,
+      "spike_rate": 0.0788
+    },
+    {
+      "bound_m": 1.0,
+      "kept_frac": 0.8422,
+      "spike_rate": 0.0699
+    },
+    {
+      "bound_m": 0.5,
+      "kept_frac": 0.3953,
+      "spike_rate": 0.0417
+    },
+    {
+      "bound_m": 0.35,
+      "kept_frac": 0.2249,
+      "spike_rate": 0.0123
+    },
+    {
+      "bound_m": 0.25,
+      "kept_frac": 0.1107,
+      "spike_rate": 0.0068
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "clip": "clip0",
+  "n_rows": 12112,
+  "fraction_projected": 1.0,
+  "fraction_on_pitch_gate": 0.7126,
+  "n_player_frames_with_speed": 7785,
+  "speed_over_cap_frac": 0.0168,
+  "speed_p50": 3.758,
+  "speed_p95": 9.267,
+  "speed_p99": 11.781,
+  "speed_max": 15.724,
+  "n_tracks": 134,
+  "median_km_per_90": 23.431,
+  "velocity_estimator": {
+    "window_frames": 11,
+    "window_seconds": 0.44,
+    "sigma_position_m": 0.2073,
+    "sigma_velocity_ms": 0.4941
+  },
+  "speed_over_cap_frac_per_frame_differencing": 0.0773,
+  "criteria": {
+    "C-P1 <=1% speeds over 11 m/s": {
+      "pass": false,
+      "value": 0.0168
+    },
+    "C-P2 median 9-12 km/90": {
+      "pass": false,
+      "value": 23.43
+    },
+    "C-P3 gated rows null": {
+      "pass": true,
+      "value": 0.7126
+    }
+  }
+}

@@ -74,3 +74,16 @@ def test_resolve_clubs_adds_nullable_id_column(r):
     out = resolve_clubs(df, "club_raw", r)
     assert out["club_id"].tolist()[:2] == ["persib", "persik-kendal"]
     assert pd.isna(out["club_id"].iloc[2])
+
+
+def test_footystats_formal_names_resolve():
+    """footystats.org uses formal long-form club names; the definitional
+    acronym expansions resolve, surfaced by the 2026-08-07 crawl triage."""
+    r = ClubResolver()
+    assert r.resolve("Persatuan Sepak Bola Surabaya") == "persebaya"
+    assert r.resolve("Persatuan Sepakbola Makassar") == "psm"
+    assert r.resolve("Persatuan Sepakbola Sleman") == "pss"
+    assert r.resolve("Persatuan Sepak Bola Lamongan") == "persela"
+    assert r.resolve("Maluku Utara United FC") == "malut-united"
+    # new Liga 2 clubs stay unresolved until their lineages are verified
+    assert r.resolve("Kendal Tornado FC") is None

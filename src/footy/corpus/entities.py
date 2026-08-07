@@ -34,9 +34,9 @@ import pandas as pd
 CLUBS: dict[str, dict] = {
     "persib": {"name": "Persib Bandung", "aliases": ["persib", "persib bandung"]},
     "persija": {"name": "Persija Jakarta", "aliases": ["persija", "persija jakarta"]},
-    "persebaya": {"name": "Persebaya Surabaya", "aliases": ["persebaya", "persebaya surabaya"]},
+    "persebaya": {"name": "Persebaya Surabaya", "aliases": ["persebaya", "persebaya surabaya", "persatuan sepak bola surabaya"]},
     "arema": {"name": "Arema", "aliases": ["arema", "arema fc", "arema malang"]},
-    "psm": {"name": "PSM Makassar", "aliases": ["psm", "psm makassar"]},
+    "psm": {"name": "PSM Makassar", "aliases": ["psm", "psm makassar", "persatuan sepakbola makassar"]},
     "bali-united": {
         "name": "Bali United",
         "aliases": ["bali united", "bali united fc", "persisam putra", "putra samarinda"],
@@ -65,11 +65,11 @@ CLUBS: dict[str, dict] = {
     "persita": {"name": "Persita Tangerang", "aliases": ["persita", "persita tangerang"]},
     "persipura": {"name": "Persipura Jayapura", "aliases": ["persipura", "persipura jayapura"]},
     "psis": {"name": "PSIS Semarang", "aliases": ["psis", "psis semarang"]},
-    "pss": {"name": "PSS Sleman", "aliases": ["pss", "pss sleman"]},
+    "pss": {"name": "PSS Sleman", "aliases": ["pss", "pss sleman", "persatuan sepakbola sleman"]},
     "persis": {"name": "Persis Solo", "aliases": ["persis", "persis solo"]},
     "barito-putera": {"name": "Barito Putera", "aliases": ["barito putera", "ps barito putera"]},
     "madura-united": {"name": "Madura United", "aliases": ["madura united", "madura united fc"]},
-    "persela": {"name": "Persela Lamongan", "aliases": ["persela", "persela lamongan"]},
+    "persela": {"name": "Persela Lamongan", "aliases": ["persela", "persela lamongan", "persatuan sepak bola lamongan"]},
     "persiraja": {"name": "Persiraja Banda Aceh", "aliases": ["persiraja", "persiraja banda aceh"]},
     "semen-padang": {"name": "Semen Padang", "aliases": ["semen padang", "semen padang fc"]},
     "sriwijaya": {"name": "Sriwijaya", "aliases": ["sriwijaya", "sriwijaya fc"]},
@@ -102,7 +102,7 @@ CLUBS: dict[str, dict] = {
     "garudayaksa": {"name": "Garudayaksa", "aliases": ["garudayaksa"]},
     "java-united": {"name": "Java United", "aliases": ["java united"]},
     "psbs": {"name": "PSBS Biak", "aliases": ["psbs", "psbs biak"]},
-    "malut-united": {"name": "Malut United", "aliases": ["malut united", "malut united fc"]},
+    "malut-united": {"name": "Malut United", "aliases": ["malut united", "malut united fc", "maluku utara united"]},
     "persijap": {"name": "Persijap Jepara", "aliases": ["persijap", "persijap jepara"]},
 }
 

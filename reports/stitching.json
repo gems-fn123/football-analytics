@@ -1,0 +1,27 @@
+{
+  "n_bytetrack_ids": 66,
+  "n_physics_segments": 251,
+  "n_embeddable": 192,
+  "n_merges": 16,
+  "n_ids_after": 235,
+  "osnet_loaded_fraction": 0.9965,
+  "box_height_median_px": 37.625,
+  "embedding_same_player_median": 0.8883,
+  "embedding_diff_player_median": 0.8043,
+  "embedding_best_balanced_accuracy": 0.7762,
+  "embedding_best_threshold": 0.86,
+  "same_frame_violations": 0,
+  "speed_over_cap_frac": 0.023,
+  "median_km_per_90": 26.382,
+  "criteria": {
+    "C-S1 ids <= 5x median persons": {
+      "pass": false,
+      "value": 235,
+      "cap": 75
+    },
+    "C-S2 no same-frame duplicates": {
+      "pass": true,
+      "value": 0
+    }
+  }
+}

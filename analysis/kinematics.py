@@ -144,12 +144,21 @@ def add_kinematics(tracks: pd.DataFrame, window: int | None = None,
     for tid, g in out[out["track_id"] >= 0].groupby("track_id"):
         g = g.sort_values("frame")
         idx = g.index
-        vx, vy = _fit_velocity(
-            g["t_s"].to_numpy(dtype=float),
-            g["x_m"].to_numpy(dtype=float),
-            g["y_m"].to_numpy(dtype=float),
-            window,
-        )
+        # Window on FRAME NUMBER, not row position. A track with gaps (missed
+        # detections, or positions refused by the spatial gate) has rows that are
+        # adjacent in the table but far apart in time; windowing by row would quietly
+        # fit a line across the gap and call the result a velocity.
+        frames = g["frame"].to_numpy().astype(int)
+        full = np.arange(frames.min(), frames.max() + 1)
+        pos = {f: i for i, f in enumerate(full)}
+        xs = np.full(len(full), np.nan)
+        ys = np.full(len(full), np.nan)
+        ts = full * DT_DEFAULT
+        where = np.array([pos[f] for f in frames])
+        xs[where] = g["x_m"].to_numpy(dtype=float)
+        ys[where] = g["y_m"].to_numpy(dtype=float)
+        vx_full, vy_full = _fit_velocity(ts, xs, ys, window)
+        vx, vy = vx_full[where], vy_full[where]
         speed = np.hypot(vx, vy)
         out.loc[idx, "speed_ms"] = speed
         # Acceleration from the same regression output, differenced over the window

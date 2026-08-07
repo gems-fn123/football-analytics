@@ -6,11 +6,19 @@ Criteria that failed are reported as failed.
 ## Headline
 
 **Calibration is solved. It is no longer the thing blocking metres.**
-**Tracking is now the binding constraint, and it was not previously identified as one.**
+**Tracking was the next binding constraint and has been substantially improved.**
+**Neither was sufficient: the physical criteria still fail, and the numbers stay unpublished.**
 
-That reversal is the main finding. Before this work the assumption — mine included, and
-the reason tasks 17 and 20 existed — was that registration accuracy was the obstacle. It
-is not.
+The first reversal is the main finding. Before this work the assumption — mine included,
+and the reason tasks 17 and 20 existed — was that registration accuracy was the obstacle.
+It is not.
+
+The second is the more useful one for whoever picks this up: having fixed calibration,
+then the velocity estimator, then identity switches, then the association space, the
+median player speed did not move at all (3.75–3.77 m/s throughout). Four independent
+interventions on the mechanisms that *should* have caused it changed nothing, which is
+strong evidence the remaining gap is neither geometry nor tracking, but the combination
+of 38 px players and a 32 s all-action clip that full-match baselines do not describe.
 
 ## A. Homography tracking
 
@@ -121,6 +129,87 @@ directional, but not the dominant term** — most of the common mode survives a 
 camera and is genuine collective play plus residual noise. Recorded at that strength
 deliberately: the first reading of this test suggested a 2.2× anomaly, and controlling
 for camera pan cut it down.
+
+## C-bis. Tracking, attacked directly
+
+Two approaches, both scored. Criteria C-S1 / C-S2 were frozen in advance.
+
+### Appearance re-ID cannot work at this resolution — measured, not assumed
+
+Before believing any merge, the embedding was validated without needing labels: crops
+from the **same** segment are the same player by construction, and crops from segments
+that **overlap in time** are provably different people, since one person cannot be in
+two places in one frame.
+
+| | cosine similarity |
+|---|---|
+| same player | median 0.888 |
+| provably different player | median 0.804 |
+| best achievable balanced accuracy | **77.6 %** (at threshold 0.86) |
+
+49.4 % of provably-different pairs score above the 10th percentile of same-player pairs.
+Player boxes are a median of **38 px** tall against OSNet's 256×128 input, so the crops
+are heavily upscaled and carry little identity. OSNet weights loaded correctly (99.6 % of
+parameters matched), so this is the footage, not the setup.
+
+| criterion | bar | result | |
+|---|---|---|---|
+| C-S2 no same-frame duplicates | 0 | **0** | PASS |
+| C-S1 ids ≤ 5× median persons | ≤ 75 | **235** | **FAIL** |
+
+The stitcher's ambiguity test behaved correctly — it made only 16 merges and produced
+**zero** provable false merges — but that conservatism is why it cannot fix
+fragmentation. It also made the physical criteria slightly *worse* (C-P1 1.68 % → 2.30 %),
+because a merge spans a temporal gap and velocity across that gap is not measurable.
+**Stitching stays off**, which is what C-S2's framing intended.
+
+### Associating in pitch metres instead of image pixels
+
+ByteTrack associates by IoU in the image while clip0's camera pans 1934 px, so a
+stationary player has a large image-space velocity and IoU between consecutive frames
+collapses. With the homography validated, association can happen in metres, where the
+gate follows from physics rather than tuning: a player covers at most
+`12 m/s · dt + 3σ√2` ≈ **1.37 m** between frames, against a 105 m pitch.
+
+| | distinct ids | segments after physics split | median track life |
+|---|---|---|---|
+| ByteTrack (image space) | 66 | **251** | 1.6 s |
+| pitch-space association | **122** | **127** | **2.3 s** |
+
+The second column is the informative one. ByteTrack's 66 ids shatter into 251 physically
+honest segments, i.e. most ids contain an identity switch. Pitch-space association yields
+122 tracks that survive the same test almost intact (127), so they are internally
+consistent rather than merely fewer.
+
+One bug found and fixed here: the association gate tested distance from the *predicted*
+position only, so a bad velocity estimate could admit a jump the player could never
+physically make. Enforcing the bound from the last *observed* position as well took the
+physics split from 122 → 172 down to 122 → 127.
+
+### It did not rescue the physical criteria
+
+| | C-P1 (bar ≤ 1 %) | C-P2 (bar 9–12) |
+|---|---|---|
+| ByteTrack + physics split | 1.77 % | 24.6 |
+| pitch-space association | **2.09 %** | 23.4 |
+
+**Median speed is 3.75–3.77 m/s under every tracking variant tried.** It does not move
+when the tracker changes, so the median is not an identity-switch artifact — which rules
+out the mechanism P-5 named and the one this section set out to fix.
+
+Nor is it a noise floor: the estimator resolves speeds down to 0.30 m/s (p1), 2.0 % of
+frames sit under 0.5 m/s, and 38 % of tracks dip below 1 m/s. A systematic floor would
+show none of that.
+
+What remains is a distribution that is simply **hotter than full-match football**: 20 % of
+time under 2 m/s where a real match spends 70–85 %. Part of that is genuine — clip0 is
+32 s of continuous active play from a kickoff, with none of the stoppages, walking or
+standing goalkeepers that full-match baselines average over, so C-P2's 9–12 km/90 bar
+does not transfer. Part is not: p99 of 12.4 m/s exceeds the human record, so the tail is
+still contaminated by position outliers at 38 px player size.
+
+Both parts are reported rather than resolved. Tuning thresholds until the criteria went
+green would have made the frozen criteria worthless.
 
 ## D. What this means for the approach
 

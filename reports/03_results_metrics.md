@@ -211,6 +211,63 @@ still contaminated by position outliers at 38 px player size.
 Both parts are reported rather than resolved. Tuning thresholds until the criteria went
 green would have made the frozen criteria worthless.
 
+## C-ter. Is the metre scale grounded, or just assumed?
+
+Worth asking directly, because the homography is solved *to* a pitch model: if the real
+pitch differs from the model, every distance and speed scales with the error.
+
+**What the repo assumes**: 105 × 68 m (`configs/pitch/standard_105x68.yaml`). IFAB Law 1
+allows 100–110 × 64–75 m for international matches and 90–120 × 45–90 m otherwise;
+105 × 68 is the FIFA/UEFA recommendation and the convention StatsBomb and socceraction
+normalise to, so it is the right default.
+
+**What is actually grounded.** Scale does not rest on those numbers. Four of the five
+seed correspondences in `seed_clip0.py` are the **centre circle**, whose 9.15 m radius is
+fixed by the Laws on every pitch in the world and does not scale with pitch size. Only
+one correspondence (halfway line meeting the far touchline) uses the assumed width.
+
+Three *independent* invariants can be checked against the verified reference:
+
+| invariant | true value | implied | error |
+|---|---|---|---|
+| centre circle radius | 9.15 m | 9.77 m | **+6.8 %** |
+| pitch width (touchline) | 68 m assumed | 66.0 m | **−2.9 %** |
+| player stature | ~1.80 m | 1.98 m | **+10 %** |
+
+They agree to within about 10 %, and **that spread is the honest error bar on the metre
+scale** — better than the ±2 m positional bound the project already works to, and far too
+small to explain the physical-criteria failures. Correcting for any of them moves median
+speed from 3.77 m/s to 3.43–3.88 m/s, against the ~2 m/s a real match implies. **Pitch
+dimensions are not the cause.**
+
+**Length is the least constrained, and least important.** Clip0 shows no goal line, so
+105 m is unconstrained by this footage. It matters less than it looks: length enters as
+an origin offset, not as a metric scale, so distances and speeds are unaffected. It would
+matter for zone-based or xT analysis, which is not published here.
+
+**The error is strongly anisotropic, and this is the useful part.** Reprojecting the
+detected circle through the verified reference:
+
+| circle point | implied radius | error |
+|---|---|---|
+| left | 9.02 m | −1.4 % |
+| right | 9.02 m | −1.4 % |
+| near | 8.56 m | −6.5 % |
+| **far** | **12.49 m** | **+36.5 %** |
+
+Lateral geometry is excellent; **depth is poor and gets worse with distance**. That shows
+up downstream exactly as it should: |v_y| / |v_x| = 1.18 overall, and |v_y| climbs from
+3.24 m/s in the nearest depth band to 4.30 m/s in the furthest while |v_x| stays flat.
+Real players have no reason to move faster across the pitch than along it.
+
+**One artefact worth recording so nobody repeats it.** Fitting a homography from the four
+circle points *alone* — which is exactly determined, 4 points giving 8 equations — puts
+the far touchline at 16.5 m from centre, implying a 33 m pitch. That is not a measurement,
+it is ill-conditioning: extrapolating depth from a circle spanning only 81 px vertically
+has no redundancy to absorb the ~9 px error on the far point, which is itself 36 % off.
+The five-point fit, which includes the touchline, gives the sane 66 m. Depth extrapolation
+from a small baseline is the weak direction of this whole setup.
+
 ## D. What this means for the approach
 
 The teammate's per-frame keypoint calibration (`src/footy/calib/`) constrains the

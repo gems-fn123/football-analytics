@@ -85,5 +85,30 @@ def test_footystats_formal_names_resolve():
     assert r.resolve("Persatuan Sepakbola Sleman") == "pss"
     assert r.resolve("Persatuan Sepak Bola Lamongan") == "persela"
     assert r.resolve("Maluku Utara United FC") == "malut-united"
-    # new Liga 2 clubs stay unresolved until their lineages are verified
-    assert r.resolve("Kendal Tornado FC") is None
+    # verified 2026-08-11: Tornado FC Pekanbaru relocated, NOT Persik Kendal
+    assert r.resolve("Kendal Tornado FC") == "kendal-tornado"
+
+
+def test_liga2_curation_pass_2026_08():
+    """The 2025-26 Liga 2 cohort resolves; lineages web-verified 2026-08-11."""
+    r = ClubResolver()
+    assert r.resolve("PS Delta Putra Sidoarjo") == "deltras"  # wiki: 'Deltras'
+    assert r.resolve("Persekat Tegal") == "persekat"
+    assert r.resolve("Persiku Kudus") == "persiku"
+    assert r.resolve("Persipal Palu") == "persipal"
+    assert r.resolve("Persikad Depok FC") == "persikad"
+    assert r.resolve("Adhyaksa FC") == "adhyaksa"
+    assert r.resolve("Sumsel United FC") == "sumsel-united"
+    assert r.resolve("Persikas Subang") == "sumsel-united"  # pre-relocation name
+    assert r.resolve("FC Bekasi City") == "bekasi-city"
+    assert r.resolve("AHHA PS Pati") == "bekasi-city"  # licence-chain ancestor
+    assert r.resolve("Kendal Tornado FC") == "kendal-tornado"
+
+
+def test_kendal_and_gresik_traps_hold():
+    """Similar names, verified-distinct entities: never cross-resolve."""
+    r = ClubResolver()
+    assert r.resolve("Kendal Tornado FC") != r.resolve("Persik Kendal")
+    assert r.resolve("PSG Gresik") == "bekasi-city"  # licence chain
+    assert r.resolve("Gresik United") == "persegres"  # different club entirely
+    assert r.resolve("Persiku") != r.resolve("Persik")

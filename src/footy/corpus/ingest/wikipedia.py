@@ -23,7 +23,7 @@ from footy.corpus.provenance import stamp
 from footy.corpus.store import CorpusStore
 from footy.logging_utils import get_logger
 
-INGESTOR_VERSION = "0.1.0"
+INGESTOR_VERSION = "0.1.1"
 LICENCE = "CC-BY-SA-4.0"
 SOURCE = "wikipedia"
 
@@ -68,6 +68,19 @@ def page_url(title: str) -> str:
     # disallows /api/ for generic agents and PoliteFetcher takes robots at its
     # word - no special-casing "but the API is meant for bots".
     return "https://en.wikipedia.org/wiki/" + quote(title.replace(" ", "_"), safe="_()")
+
+
+def _num(series: pd.Series | None) -> pd.Series | None:
+    """Numeric column tolerant of footnote markers: '79[a]' -> 79.
+
+    Tied clubs get tie-break footnotes on their Pts cells; a plain to_numeric
+    coerced exactly those to NaN - discovered when cross-validating against
+    footystats totals, where every NaN'd club was one of a points tie.
+    """
+    if series is None:
+        return None
+    extracted = series.astype(str).str.extract(r"(-?\d+)", expand=False)
+    return pd.to_numeric(extracted, errors="coerce")
 
 
 def strip_markers(name: str) -> str:
@@ -129,16 +142,16 @@ def parse_league_table(html: str) -> pd.DataFrame | None:
             continue
         out = pd.DataFrame(
             {
-                "position": pd.to_numeric(t["Pos"], errors="coerce"),
+                "position": _num(t["Pos"]),
                 "club_raw": t[team_col].astype(str),
                 "club_name": t[team_col].astype(str).map(strip_markers),
-                "played": pd.to_numeric(t["Pld"], errors="coerce"),
-                "won": pd.to_numeric(t.get("W"), errors="coerce"),
-                "drawn": pd.to_numeric(t.get("D"), errors="coerce"),
-                "lost": pd.to_numeric(t.get("L"), errors="coerce"),
-                "goals_for": pd.to_numeric(t.get("GF"), errors="coerce"),
-                "goals_against": pd.to_numeric(t.get("GA"), errors="coerce"),
-                "points": pd.to_numeric(t.get("Pts"), errors="coerce"),
+                "played": _num(t["Pld"]),
+                "won": _num(t.get("W")),
+                "drawn": _num(t.get("D")),
+                "lost": _num(t.get("L")),
+                "goals_for": _num(t.get("GF")),
+                "goals_against": _num(t.get("GA")),
+                "points": _num(t.get("Pts")),
                 "group_raw": label,
             }
         ).dropna(subset=["position", "played"])

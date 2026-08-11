@@ -104,6 +104,38 @@ CLUBS: dict[str, dict] = {
     "psbs": {"name": "PSBS Biak", "aliases": ["psbs", "psbs biak"]},
     "malut-united": {"name": "Malut United", "aliases": ["malut united", "malut united fc", "maluku utara united"]},
     "persijap": {"name": "Persijap Jepara", "aliases": ["persijap", "persijap jepara"]},
+    # -- Liga 2 additions from the 2026-08 curation pass (lineages verified) --
+    "deltras": {
+        "name": "Deltras Sidoarjo",
+        "aliases": ["deltras", "deltras sidoarjo", "delta putra sidoarjo"],
+    },
+    "persekat": {"name": "Persekat Tegal", "aliases": ["persekat", "persekat tegal"]},
+    "persiku": {"name": "Persiku Kudus", "aliases": ["persiku", "persiku kudus"]},
+    "persipal": {"name": "Persipal Palu", "aliases": ["persipal", "persipal palu"]},
+    "persikad": {"name": "Persikad Depok", "aliases": ["persikad", "persikad depok"]},
+    "adhyaksa": {
+        # Farmel FC (2018) -> Adhyaksa Farmel -> Adhyaksa FC (Banten);
+        # promoted to the Super League in May 2026.
+        "name": "Adhyaksa FC",
+        "aliases": ["adhyaksa", "adhyaksa banten", "adhyaksa farmel"],
+    },
+    "sumsel-united": {
+        # Persikas Subang relocated/renamed, ratified at the June 2025 PSSI congress.
+        "name": "Sumsel United",
+        "aliases": ["sumsel united", "persikas", "persikas subang"],
+    },
+    "bekasi-city": {
+        # Licence chain: Putra Ijen (Jember) -> PSG Gresik -> PSG Pati ->
+        # AHHA PS Pati -> FC Bekasi City (2022). NOT related to Badak Lampung.
+        "name": "FC Bekasi City",
+        "aliases": ["bekasi city", "fc bekasi city", "ahha ps pati", "psg pati", "psg gresik"],
+    },
+    "kendal-tornado": {
+        # Tornado FC Pekanbaru (2018) relocated to Kendal for 2025-26.
+        # NOT Persik Kendal, which still exists separately in Liga 4.
+        "name": "Kendal Tornado",
+        "aliases": ["kendal tornado", "tornado fc", "tornado fc pekanbaru"],
+    },
 }
 
 # Pairs that must NEVER merge, whatever any matcher thinks. Both orders hold.
@@ -116,6 +148,11 @@ DO_NOT_MERGE: set[tuple[str, str]] = {
     ("persib", "persibat"),
     ("persija", "persijap"),  # Jakarta vs Jepara, one letter apart
     ("persita", "persiba"),
+    ("kendal tornado", "persik kendal"),  # relocated Pekanbaru club vs the local one
+    ("psg gresik", "persegres"),  # PSG Gresik (-> Bekasi City) vs Gresik United
+    ("psg gresik", "gresik united"),
+    ("persiku", "persik"),  # Kudus vs Kediri, one letter apart
+    ("persiku", "persik kendal"),
 }
 
 

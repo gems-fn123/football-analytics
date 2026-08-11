@@ -152,3 +152,53 @@ def test_fetcher_backs_off_on_429(tmp_path, monkeypatch):
     )
     assert fetcher.fetch("https://example.org/page", key="page") == "payload"
     assert calls["n"] == 3  # two 429s absorbed, third answered
+
+
+def test_league_table_numbers_survive_footnote_markers():
+    """Tied clubs' Pts render as '79[a]' on Wikipedia; they must parse as 79.
+
+    Regression: to_numeric(coerce) NaN'd exactly the points-tied clubs,
+    caught by cross-validating against footystats club totals."""
+    html = """
+    <html><body><h2>Standings</h2>
+    <table class='wikitable'><tr><th>Pos</th><th>Teamvte</th><th>Pld</th>
+    <th>W</th><th>D</th><th>L</th><th>GF</th><th>GA</th><th>Pts</th></tr>
+    <tr><td>1</td><td>Persib (C)</td><td>34</td><td>24</td><td>7</td>
+    <td>3</td><td>70</td><td>30</td><td>79[a]</td></tr>
+    <tr><td>2</td><td>Borneo Samarinda</td><td>34</td><td>25</td><td>4</td>
+    <td>5</td><td>74</td><td>31</td><td>79[a]</td></tr>
+    </table></body></html>"""
+    t = parse_league_table(html)
+    assert t["points"].tolist() == [79, 79]
+    assert t["position"].tolist() == [1, 2]
+
+
+def test_cross_validate_club_seasons(tmp_path):
+    import pandas as pd
+
+    from footy.corpus.provenance import stamp
+    from footy.corpus.validate import cross_validate_club_seasons
+
+    store = CorpusStore(tmp_path)
+    base = {
+        "club_name": ["Persib Bandung", "Borneo FC"],
+        "position": [1, 2],
+        "played": [34, 34],
+        "won": [24, 25],
+        "drawn": [7, 4],
+        "lost": [3, 5],
+        "goals_for": [70, 74],
+        "goals_against": [30, 31],
+        "points": [79, 79],
+    }
+    a = pd.DataFrame(base)
+    b = pd.DataFrame(base).assign(position=[2, 1], goals_for=[70, 73])  # one fact off
+    for src, df in (("srcA", a), ("srcB", b)):
+        df = stamp(df, source=src, source_url="u", licence_tag="t", ingestor_version="0")
+        store.write("club_seasons", df, source=src, competition="liga1", season="2025-26")
+
+    diffs = cross_validate_club_seasons(store, "srcA", "srcB", "liga1", "2025-26")
+    kinds = diffs.set_index(["club_id", "field"])["kind"].to_dict()
+    assert kinds[("borneo", "goals_for")] == "fact"
+    assert kinds[("persib", "position")] == "ordering"
+    assert len(diffs) == 3  # 1 fact + 2 ordering rows, nothing else

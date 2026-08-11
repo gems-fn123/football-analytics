@@ -7,6 +7,14 @@ difference worth knowing about (found one of those too: FootyStats orders
 points-ties by goal difference, Wikipedia records the official head-to-head
 standings - so `position` is compared but reported separately from the
 factual columns).
+
+Source precedence, from adjudicated conflicts (2026-08-11): prefer WIKIPEDIA
+for club-season facts and standings when sources disagree. Case study:
+Persikad 2025-26 - FootyStats recorded both Adhyaksa-home fixtures as 2-1,
+but press match reports confirm 2025-09-28 ended 2-2 (2026-02-14 was 2-1),
+so FootyStats' 9W-6D-12L/33pts is a duplicate-result error and Wikipedia's
+9W-7D-11L/34pts is correct. FootyStats' internal consistency (its table
+matches its own fixture list) is NOT accuracy.
 """
 
 from __future__ import annotations

@@ -33,6 +33,20 @@ log = get_logger("footy.corpus.wikipedia")
 # what the competition was called that season.
 SEASON_PAGES: dict[str, list[tuple[str, str]]] = {
     "liga1": [
+        # Top-flight lineage before the 2017 "Liga 1" branding: Indonesia
+        # Super League 2008-2015 (2015 abandoned mid-season) and the 2016
+        # Indonesia Soccer Championship bridge season. Same competition key
+        # across rebrands; competition_name_raw records the era's name.
+        # NOT included: the 2011-2013 breakaway Indonesian Premier League
+        # (dualism era) - a separate branch, pending a decision on its key.
+        ("2008-09", "2008–09 Indonesia Super League"),
+        ("2009-10", "2009–10 Indonesia Super League"),
+        ("2010-11", "2010–11 Indonesia Super League"),
+        ("2011-12", "2011–12 Indonesia Super League"),
+        ("2013", "2013 Indonesia Super League"),
+        ("2014", "2014 Indonesia Super League"),
+        ("2015", "2015 Indonesia Super League"),  # abandoned (force majeure)
+        ("2016", "2016 Indonesia Soccer Championship A"),
         ("2017", "2017 Liga 1 (Indonesia)"),
         ("2018", "2018 Liga 1 (Indonesia)"),
         ("2019", "2019 Liga 1 (Indonesia)"),

@@ -65,7 +65,9 @@ PLAYER_HTML = """
 <table><tr><th>Goals, xG, Shots</th><th>Total</th></tr>
 <tr><td>Goals Scored</td><td>20</td></tr>
 <tr><td>Expected Goals (xG)</td><td>11.52</td></tr></table>
-<table><tr><td>Assists</td><td>14</td></tr></table>
+<table><tr><td>Assists</td><td>14</td></tr>
+<tr><td>Expected Assists (xA)</td><td>7.54</td></tr></table>
+<p>Age : 28 (February 20, 1998)</p>
 <h2>President's Cup Stats for Mariano Peralta Bauer</h2>
 <table><tr><td>Matches Played</td><td>2</td></tr><tr><td>Goals Scored</td><td>1</td></tr></table>
 <section id='past-section'>
@@ -147,6 +149,7 @@ def test_current_season_scoped_to_recognised_sections():
         "goals": 20,
         "xg": 11.52,
         "assists": 14,
+        "xa": 7.54,
     }
 
 
@@ -258,3 +261,13 @@ def test_same_player_in_two_squads_deduped(tmp_path):
     web.ingest(competitions=["liga1", "liga2"], max_clubs=1, max_players_per_club=1)
     past = store.read("player_seasons", source="footystats_web", season="2024-25")
     assert len(past) == 1
+
+
+def test_profile_age_and_birth_date():
+    from footy.corpus.ingest.footystats_web import parse_profile
+
+    assert parse_profile(PLAYER_HTML) == {"age": 28, "birth_date": "1998-02-20"}
+    assert parse_profile("<html><body>no info box</body></html>") == {
+        "age": None,
+        "birth_date": None,
+    }

@@ -38,7 +38,7 @@ from footy.corpus.provenance import stamp
 from footy.corpus.store import CorpusStore
 from footy.logging_utils import get_logger
 
-INGESTOR_VERSION = "0.1.0"
+INGESTOR_VERSION = "0.2.0"  # 0.2.0: + xA, age/birth date from the profile box
 LICENCE = "tos-risk-accepted"  # scraped public pages; user-approved Tier-B risk
 SOURCE = "footystats_web"
 BASE = "https://footystats.org"
@@ -152,6 +152,28 @@ def parse_league_table(html: str) -> pd.DataFrame | None:
     return pd.DataFrame(rows).dropna(subset=["position", "played"])
 
 
+_AGE = re.compile(r"Age\s*:\s*(\d{1,2})\s*(?:\(([^)]+)\))?")
+
+
+def parse_profile(html: str) -> dict:
+    """Age and birth date from the player info box: 'Age : 28 (February 20, 1998)'.
+
+    Both nullable; the birth date is the durable fact (age drifts with the
+    retrieval date), kept ISO when it parses, verbatim when it doesn't.
+    """
+    flat = re.sub(r"<[^>]+>", " ", html)
+    m = _AGE.search(flat)
+    if not m:
+        return {"age": None, "birth_date": None}
+    birth = None
+    if m.group(2):
+        try:
+            birth = pd.Timestamp(m.group(2).strip()).date().isoformat()
+        except (ValueError, TypeError):
+            birth = m.group(2).strip()
+    return {"age": int(m.group(1)), "birth_date": birth}
+
+
 def parse_squad(html: str) -> list[dict]:
     """Squad entries from a club page: player URL, verbatim name, position.
 
@@ -243,6 +265,7 @@ def parse_current_season(html: str) -> list[dict]:
         "goals scored": "goals",
         "assists": "assists",
         "expected goals (xg)": "xg",
+        "expected assists (xa)": "xa",
     }
     out: list[dict] = []
     current: dict | None = None
@@ -268,7 +291,7 @@ def parse_current_season(html: str) -> list[dict]:
             field = wanted.get(cells[0].get_text(" ", strip=True).lower())
             if field and field not in current:
                 text = cells[1].get_text(" ", strip=True)
-                current[field] = _float(text) if field == "xg" else _int(text)
+                current[field] = _float(text) if field in ("xg", "xa") else _int(text)
     return [c for c in out if c.get("appearances") is not None]
 
 
@@ -309,6 +332,9 @@ class FootyStatsWeb:
         df["player_raw"] = name
         df["player_url"] = url
         df["position"] = position
+        profile = parse_profile(html)
+        df["age"] = profile["age"]  # as of retrieval, not of the season row
+        df["birth_date"] = profile["birth_date"]
         return stamp(
             df,
             source=SOURCE,
